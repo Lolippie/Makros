@@ -1,0 +1,33 @@
+
+name: makros_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+workspace:
+  - apps/makros_app
+  - packages/core
+  - packages/models
+  - packages/nutrition
+  - packages/data
+
+dev_dependencies:
+  melos: ^8.0.0
+
+melos:
+  scripts:
+    run:web:
+      run: cd apps/makros_app && flutter run -d chrome
+
+    run:android:
+      run: cd apps/makros_app && flutter run
+
+    build:web:
+      run: cd apps/makros_app && flutter build web --release
+
+    build:android:
+      run: cd apps/makros_app && flutter build apk --release
+
+    analyze:
+      run: melos exec -- flutter analyze

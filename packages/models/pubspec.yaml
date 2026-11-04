@@ -1,0 +1,12 @@
+name: makros_models
+description: Data models for Makros.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+resolution: workspace
+
+dependencies:
+  makros_core: any

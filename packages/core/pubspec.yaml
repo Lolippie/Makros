@@ -1,0 +1,9 @@
+name: makros_core
+description: Core utilities and shared configuration for Makros.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+resolution: workspace
