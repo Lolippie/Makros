@@ -1,0 +1,20 @@
+enum FoodCategory {
+  // Groupes alimentaires
+  fruits,
+  vegetables,
+  meat,
+  fish,
+  seafood,
+  eggs,
+  dairy,
+  legumes,
+  cereals,
+  starches,
+  nuts,
+  seeds,
+  oils,
+  beverages,
+  sweets,
+  sauces,
+  other,
+}
