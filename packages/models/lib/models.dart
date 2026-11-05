@@ -16,6 +16,7 @@ export 'alimentation/food_category.dart';
 export 'alimentation/nutritional_category.dart';
 export 'alimentation/nutrition_variance.dart';
 export 'alimentation/nutrition_transition.dart';
+export 'alimentation/secondary_nutrients.dart';
 // Sport
 export 'sport/planned_active_day.dart';
 export 'sport/sport_type.dart';
