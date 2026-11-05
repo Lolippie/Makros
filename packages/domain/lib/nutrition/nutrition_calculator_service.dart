@@ -1,4 +1,3 @@
-
 import 'package:makros_models/models.dart';
 
 import 'config/nutrition_calculation_config.dart';
@@ -102,16 +101,11 @@ class NutritionCalculatorService {
     }
 
     if (!metValue.isFinite || metValue < 1) {
-      throw ArgumentError(
-        'La valeur MET doit être supérieure ou égale à 1.',
-      );
+      throw ArgumentError('La valeur MET doit être supérieure ou égale à 1.');
     }
 
     // Calories nettes : on retire 1 MET correspondant au repos.
-    return (metValue - 1) *
-        1.05 *
-        weightKg *
-        (durationMinutes / 60);
+    return (metValue - 1) * 1.05 * weightKg * (durationMinutes / 60);
   }
 
   double getMetValue({
@@ -159,10 +153,7 @@ class NutritionCalculatorService {
         );
       }
 
-      final metValue = getMetValue(
-        sportType: sportType,
-        intensity: intensity,
-      );
+      final metValue = getMetValue(sportType: sportType, intensity: intensity);
 
       totalCalories += calculateSessionCalories(
         weightKg: weightKg,
@@ -177,8 +168,11 @@ class NutritionCalculatorService {
   void _validateWeeklyDates(List<PlannedActiveDay> plannedDays) {
     if (plannedDays.isEmpty) return;
 
+    // Dates en UTC : la différence en jours est alors exacte et ne dépend
+    // pas du changement d'heure (en local, 7 jours peuvent valoir 6 jours
+    // et 23 h, donc inDays == 6, et faire passer une période de 8 jours).
     final dates = plannedDays.map((day) {
-      return DateTime(day.date.year, day.date.month, day.date.day);
+      return DateTime.utc(day.date.year, day.date.month, day.date.day);
     }).toList();
 
     final uniqueDates = dates.toSet();
@@ -211,25 +205,19 @@ class NutritionCalculatorService {
 
     switch (goal.type) {
       case GoalType.cut:
-        final value =
-            percentage ?? config.defaultCutDeficitPercentage;
+        final value = percentage ?? config.defaultCutDeficitPercentage;
 
         if (!value.isFinite || value < 0 || value >= 100) {
-          throw ArgumentError(
-            'Le déficit doit être compris entre 0 et 100 %.',
-          );
+          throw ArgumentError('Le déficit doit être compris entre 0 et 100 %.');
         }
 
         return -value;
 
       case GoalType.bulk:
-        final value =
-            percentage ?? config.defaultBulkSurplusPercentage;
+        final value = percentage ?? config.defaultBulkSurplusPercentage;
 
         if (!value.isFinite || value < 0) {
-          throw ArgumentError(
-            'Le surplus doit être positif ou nul.',
-          );
+          throw ArgumentError('Le surplus doit être positif ou nul.');
         }
 
         return value;
@@ -271,21 +259,18 @@ class NutritionCalculatorService {
       plannedDays: plannedDays,
     );
 
-    final averageDailyExerciseCalories =
-        weeklyExerciseCalories / 7;
+    final averageDailyExerciseCalories = weeklyExerciseCalories / 7;
 
     final maintenanceCalories =
         dailyBaselineCalories + averageDailyExerciseCalories;
 
     final adjustmentPercentage = getAdjustmentPercentage(goal);
 
-    final targetCalories = maintenanceCalories *
-        (1 + adjustmentPercentage / 100);
+    final targetCalories =
+        maintenanceCalories * (1 + adjustmentPercentage / 100);
 
     if (!targetCalories.isFinite || targetCalories <= 0) {
-      throw StateError(
-        'La cible calorique calculée est invalide.',
-      );
+      throw StateError('La cible calorique calculée est invalide.');
     }
 
     return NutritionCalculationResult(

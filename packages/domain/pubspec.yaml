@@ -11,3 +11,6 @@ resolution: workspace
 dependencies:
   makros_core: any
   makros_models: any
+
+dev_dependencies:
+  test: ^1.26.3
