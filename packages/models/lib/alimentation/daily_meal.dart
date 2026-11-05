@@ -1,5 +1,8 @@
 
-import '../models.dart';
+
+import 'macros.dart';
+import 'meal_item.dart';
+import 'meal_type.dart';
 
 class DailyMeal {
   final String id;

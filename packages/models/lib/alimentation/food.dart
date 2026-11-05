@@ -1,4 +1,7 @@
-import '../models.dart';
+
+import 'food_category.dart';
+import 'macros.dart';
+import 'nutritional_category.dart';
 
 class Food {
   final String id;

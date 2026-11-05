@@ -1,5 +1,5 @@
-import '../models.dart';
 import 'shopping_item.dart';
+import 'shopping_item_statut.dart';
 
 class ShoppingList {
   final String id;

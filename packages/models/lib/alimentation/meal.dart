@@ -1,4 +1,7 @@
-import '../models.dart';
+
+import '../recepie/recepie_step.dart';
+import 'macros.dart';
+import 'meal_item.dart';
 
 class Meal {
   final String id;

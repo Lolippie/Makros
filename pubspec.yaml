@@ -9,7 +9,7 @@ workspace:
   - apps/makros_app
   - packages/core
   - packages/models
-  - packages/nutrition
+  - packages/domain
   - packages/data
 
 dev_dependencies:

@@ -3,6 +3,14 @@ enum Gender {
   female,
 }
 
+enum ActivityLevel {
+  sedentary,
+  lightlyActive,
+  moderatelyActive,
+  veryActive,
+  extraActive,
+}
+
 class UserProfile {
   final String userId;
 
@@ -10,6 +18,7 @@ class UserProfile {
   final DateTime birthDate;
   final double height; // En cm
   final Gender gender;
+  final ActivityLevel activityLevel;
 
   // Informations complémentaires
   final String? firstName;
@@ -28,6 +37,8 @@ class UserProfile {
     this.lastName,
     required this.createdAt,
     required this.updatedAt,
+        required this.activityLevel,
+
   });
 
   // Âge calculé automatiquement

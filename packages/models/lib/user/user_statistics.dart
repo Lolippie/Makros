@@ -1,6 +1,9 @@
 
 
-import '../models.dart';
+import 'body_fat_history.dart';
+import 'muscle_mass_history.dart';
+import 'user_goal.dart';
+import 'weight_history.dart';
 
 class UserStatistics {
   final String userId;

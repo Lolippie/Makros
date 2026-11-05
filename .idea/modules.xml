@@ -6,8 +6,9 @@
 <module fileurl="file://$PROJECT_DIR$/packages/core/melos_makros_core.iml" filepath="$PROJECT_DIR$/packages/core/melos_makros_core.iml"/>
 <module fileurl="file://$PROJECT_DIR$/packages/data/melos_makros_data.iml" filepath="$PROJECT_DIR$/packages/data/melos_makros_data.iml"/>
 <module fileurl="file://$PROJECT_DIR$/packages/models/melos_makros_models.iml" filepath="$PROJECT_DIR$/packages/models/melos_makros_models.iml"/>
-<module fileurl="file://$PROJECT_DIR$/packages/nutrition/melos_makros_nutrition.iml" filepath="$PROJECT_DIR$/packages/nutrition/melos_makros_nutrition.iml"/>
+<module fileurl="file://$PROJECT_DIR$/packages/domain/melos_makros_nutrition.iml" filepath="$PROJECT_DIR$/packages/domain/melos_makros_nutrition.iml"/>
 <module fileurl="file://$PROJECT_DIR$/melos_makros_workspace.iml" filepath="$PROJECT_DIR$/melos_makros_workspace.iml"/>
+<module fileurl="file://$PROJECT_DIR$/packages/nutrition/melos_makros_nutrition.iml" filepath="$PROJECT_DIR$/packages/nutrition/melos_makros_nutrition.iml"/>
     </modules>
   </component>
 </project>

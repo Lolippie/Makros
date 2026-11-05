@@ -375,7 +375,7 @@
     },
     {
       "name": "makros_nutrition",
-      "rootUri": "../packages/nutrition",
+      "rootUri": "../packages/domain",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
