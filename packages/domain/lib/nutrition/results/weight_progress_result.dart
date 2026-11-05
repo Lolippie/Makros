@@ -10,8 +10,10 @@ enum WeightTrendStatus {
 class WeightProgressResult {
   /// Utilisateur auquel appartiennent les pesées analysées.
   final String userId;
+
   /// Jour civil inclusif de l'analyse.
   final DateTime asOfDay;
+
   /// Date minimale réellement appliquée aux mesures, ou null pour l'analyse globale.
   final DateTime? earliestMeasurementDate;
   final double referenceWeightKg;
@@ -25,12 +27,15 @@ class WeightProgressResult {
   final int measurementDaysInCurrentWindow;
   final int measurementDaysInPreviousWindow;
   final DateTime? lastMeasurementDate;
+
   /// La tendance est assez récente; trendStatus peut rester historique.
   final bool isTrendFresh;
   final WeightTrendStatus trendStatus;
   final bool shouldSuggestRecalculation;
+
   /// Demi-largeur en kg de la zone cible, utilisée par GoalProgressService.
   final double goalToleranceKg;
+
   /// Tolérance numérique en kg ajoutée aux bornes des comparaisons.
   final double comparisonEpsilonKg;
 
@@ -62,17 +67,30 @@ class WeightProgressResult {
   bool get hasUsableData => hasSufficientData && isTrendFresh;
 
   List<Object?> get _values => [
-    userId, asOfDay, earliestMeasurementDate, referenceWeightKg,
-    currentTrendWeightKg, previousTrendWeightKg, changeFromReferenceKg,
-    changeBetweenWindowsKg, weeklyWeightChangeKg, targetWeightKg,
-    remainingToTargetKg, measurementDaysInCurrentWindow,
-    measurementDaysInPreviousWindow, lastMeasurementDate, isTrendFresh,
-    trendStatus, shouldSuggestRecalculation, goalToleranceKg,
+    userId,
+    asOfDay,
+    earliestMeasurementDate,
+    referenceWeightKg,
+    currentTrendWeightKg,
+    previousTrendWeightKg,
+    changeFromReferenceKg,
+    changeBetweenWindowsKg,
+    weeklyWeightChangeKg,
+    targetWeightKg,
+    remainingToTargetKg,
+    measurementDaysInCurrentWindow,
+    measurementDaysInPreviousWindow,
+    lastMeasurementDate,
+    isTrendFresh,
+    trendStatus,
+    shouldSuggestRecalculation,
+    goalToleranceKg,
     comparisonEpsilonKg,
   ];
 
   @override
-  bool operator ==(Object other) => identical(this, other) ||
+  bool operator ==(Object other) =>
+      identical(this, other) ||
       other is WeightProgressResult && _sameValues(_values, other._values);
 
   static bool _sameValues(List<Object?> a, List<Object?> b) {
@@ -86,7 +104,8 @@ class WeightProgressResult {
   int get hashCode => Object.hashAll(_values);
 
   @override
-  String toString() => 'WeightProgressResult('
+  String toString() =>
+      'WeightProgressResult('
       'userId: $userId, asOfDay: $asOfDay, '
       'earliestMeasurementDate: $earliestMeasurementDate, '
       'referenceWeightKg: $referenceWeightKg, '

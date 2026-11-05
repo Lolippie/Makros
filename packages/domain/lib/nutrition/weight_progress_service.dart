@@ -56,8 +56,10 @@ class WeightProgressService {
     for (final measurement in measurements) {
       if (measurement.userId != userId) continue;
       final day = civilDay(measurement.measuredAt);
-      if (day.isBefore(earliest) || day.isAfter(asOfDay) ||
-          (cutoff != null && day.isBefore(cutoff))) continue;
+      if (day.isBefore(earliest) ||
+          day.isAfter(asOfDay) ||
+          (cutoff != null && day.isBefore(cutoff)))
+        continue;
       if (measurement.id.trim().isEmpty) {
         throw WeightProgressException(
           WeightProgressErrorCode.invalidMeasurement,
@@ -68,18 +70,21 @@ class WeightProgressService {
       if (!ids.add(measurement.id)) {
         throw WeightProgressException(
           WeightProgressErrorCode.duplicateMeasurement,
-          date: day, measurementId: measurement.id,
+          date: day,
+          measurementId: measurement.id,
         );
       }
       final weight = measurement.weight;
-      if (!weight.isFinite || weight <= 0 ||
+      if (!weight.isFinite ||
+          weight <= 0 ||
           (config.minimumPlausibleWeightKg != null &&
               weight < config.minimumPlausibleWeightKg!) ||
           (config.maximumPlausibleWeightKg != null &&
               weight > config.maximumPlausibleWeightKg!)) {
         throw WeightProgressException(
           WeightProgressErrorCode.invalidMeasurement,
-          date: day, measurementId: measurement.id,
+          date: day,
+          measurementId: measurement.id,
         );
       }
       grouped.putIfAbsent(day, () => <double>[]).add(weight);
@@ -91,28 +96,39 @@ class WeightProgressService {
     }
     final sortedDays = dailyMeans.keys.toList()..sort();
     final current = _window(sortedDays, dailyMeans, asOfDay, centerOrigin);
-    final previous = _window(sortedDays, dailyMeans,
-        asOfDay.subtract(Duration(days: config.trendWindowDays)), centerOrigin);
+    final previous = _window(
+      sortedDays,
+      dailyMeans,
+      asOfDay.subtract(Duration(days: config.trendWindowDays)),
+      centerOrigin,
+    );
     final currentMean = current.mean;
     final previousMean = previous.mean;
     final latest = current.latest;
-    final fresh = currentMean != null && latest != null &&
+    final fresh =
+        currentMean != null &&
+        latest != null &&
         asOfDay.difference(latest).inDays <= config.maxDaysSinceLastMeasurement;
 
-    final delta = currentMean == null ? null :
-        _finiteDifference(currentMean, referenceWeightKg, asOfDay);
-    final between = currentMean == null || previousMean == null ? null :
-        _finiteDifference(currentMean, previousMean, asOfDay);
-    final remaining = currentMean == null || targetWeightKg == null ? null :
-        _finiteDifference(targetWeightKg, currentMean, asOfDay);
+    final delta = currentMean == null
+        ? null
+        : _finiteDifference(currentMean, referenceWeightKg, asOfDay);
+    final between = currentMean == null || previousMean == null
+        ? null
+        : _finiteDifference(currentMean, previousMean, asOfDay);
+    final remaining = currentMean == null || targetWeightKg == null
+        ? null
+        : _finiteDifference(targetWeightKg, currentMean, asOfDay);
 
     // Centre des jours réellement mesurés, et non milieu théorique de fenêtre.
     final spacingDays = current.centerDay == null || previous.centerDay == null
-        ? null : current.centerDay! - previous.centerDay!;
+        ? null
+        : current.centerDay! - previous.centerDay!;
     final minimumSpacingDays =
         config.trendWindowDays * config.minimumCenterSpacingFraction;
     // Tolérance temporelle en jours, indépendante des seuils en kg.
-    final weeklyChange = between == null ||
+    final weeklyChange =
+        between == null ||
             spacingDays == null ||
             spacingDays + 1e-9 < minimumSpacingDays
         ? null
@@ -135,14 +151,20 @@ class WeightProgressService {
       lastMeasurementDate: latest,
       isTrendFresh: fresh,
       trendStatus: _trendStatus(currentMean: currentMean, between: between),
-      shouldSuggestRecalculation: fresh && delta != null &&
-          delta.abs() + config.comparisonEpsilonKg >= config.recalculationThresholdKg,
-            goalToleranceKg: config.goalToleranceKg,
-  comparisonEpsilonKg: config.comparisonEpsilonKg,
+      shouldSuggestRecalculation:
+          fresh &&
+          delta != null &&
+          delta.abs() + config.comparisonEpsilonKg >=
+              config.recalculationThresholdKg,
+      goalToleranceKg: config.goalToleranceKg,
+      comparisonEpsilonKg: config.comparisonEpsilonKg,
     );
   }
 
-  WeightTrendStatus _trendStatus({required double? currentMean, required double? between}) {
+  WeightTrendStatus _trendStatus({
+    required double? currentMean,
+    required double? between,
+  }) {
     if (currentMean == null) return WeightTrendStatus.insufficientData;
     if (between == null) return WeightTrendStatus.unknown;
     if (between < -config.stableThresholdKg - config.comparisonEpsilonKg) {
@@ -155,18 +177,29 @@ class WeightProgressService {
   }
 
   _WeightWindow _window(
-    List<DateTime> sortedDays, Map<DateTime, double> dailyMeans,
-    DateTime endInclusive, DateTime centerOrigin,
+    List<DateTime> sortedDays,
+    Map<DateTime, double> dailyMeans,
+    DateTime endInclusive,
+    DateTime centerOrigin,
   ) {
-    final start = endInclusive.subtract(Duration(days: config.trendWindowDays - 1));
-    final dates = sortedDays.where((day) =>
-        !day.isBefore(start) && !day.isAfter(endInclusive)).toList();
+    final start = endInclusive.subtract(
+      Duration(days: config.trendWindowDays - 1),
+    );
+    final dates = sortedDays
+        .where((day) => !day.isBefore(start) && !day.isAfter(endInclusive))
+        .toList();
     if (dates.isEmpty) {
-      return const _WeightWindow(mean: null, count: 0, latest: null, centerDay: null);
+      return const _WeightWindow(
+        mean: null,
+        count: 0,
+        latest: null,
+        centerDay: null,
+      );
     }
     final latest = dates.last;
     if (dates.length < config.minimumMeasurementDays ||
-        latest.difference(dates.first).inDays < config.minimumMeasurementSpanDays) {
+        latest.difference(dates.first).inDays <
+            config.minimumMeasurementSpanDays) {
       return _WeightWindow(
         mean: null,
         count: dates.length,
@@ -176,9 +209,9 @@ class WeightProgressService {
     }
     // Décalages non négatifs par rapport à une origine commune.
     // Ne pas utiliser _mean, qui impose une moyenne de poids > 0.
-    final center = _meanOffsets(
-      [for (final date in dates) date.difference(centerOrigin).inDays],
-    );
+    final center = _meanOffsets([
+      for (final date in dates) date.difference(centerOrigin).inDays,
+    ]);
     return _WeightWindow(
       mean: _mean([for (final date in dates) dailyMeans[date]!], latest),
       count: dates.length,
@@ -189,14 +222,20 @@ class WeightProgressService {
 
   double _mean(List<double> values, DateTime? date) {
     if (values.isEmpty) {
-      throw WeightProgressException(WeightProgressErrorCode.numericalFailure, date: date);
+      throw WeightProgressException(
+        WeightProgressErrorCode.numericalFailure,
+        date: date,
+      );
     }
     var average = 0.0;
     for (var i = 0; i < values.length; i++) {
       average += (values[i] - average) / (i + 1);
     }
     if (!average.isFinite || average <= 0) {
-      throw WeightProgressException(WeightProgressErrorCode.numericalFailure, date: date);
+      throw WeightProgressException(
+        WeightProgressErrorCode.numericalFailure,
+        date: date,
+      );
     }
     return average;
   }
@@ -212,7 +251,10 @@ class WeightProgressService {
   double _finiteDifference(double a, double b, DateTime? date) {
     final value = a - b;
     if (!value.isFinite) {
-      throw WeightProgressException(WeightProgressErrorCode.numericalFailure, date: date);
+      throw WeightProgressException(
+        WeightProgressErrorCode.numericalFailure,
+        date: date,
+      );
     }
     return value;
   }
@@ -220,7 +262,10 @@ class WeightProgressService {
   double _finiteProduct(double a, double b, DateTime? date) {
     final value = a * b;
     if (!value.isFinite) {
-      throw WeightProgressException(WeightProgressErrorCode.numericalFailure, date: date);
+      throw WeightProgressException(
+        WeightProgressErrorCode.numericalFailure,
+        date: date,
+      );
     }
     return value;
   }

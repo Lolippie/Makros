@@ -52,8 +52,7 @@ class WeightProgressConfig {
 
     if (minimumMeasurementSpanDays < 0 ||
         minimumMeasurementSpanDays >= trendWindowDays ||
-        (minimumMeasurementDays == 1 &&
-            minimumMeasurementSpanDays != 0)) {
+        (minimumMeasurementDays == 1 && minimumMeasurementSpanDays != 0)) {
       throw ArgumentError.value(
         minimumMeasurementSpanDays,
         'minimumMeasurementSpanDays',

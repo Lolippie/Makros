@@ -18,60 +18,84 @@ class GoalProgressService {
       throw ArgumentError.value(goalId, 'goalId', 'ne doit pas être vide');
     }
     if (!targetWeightKg.isFinite || targetWeightKg <= 0) {
-      throw ArgumentError.value(targetWeightKg, 'targetWeightKg',
-          'doit être strictement positif et fini');
+      throw ArgumentError.value(
+        targetWeightKg,
+        'targetWeightKg',
+        'doit être strictement positif et fini',
+      );
     }
     final tolerance = weightProgress.goalToleranceKg;
     final epsilon = weightProgress.comparisonEpsilonKg;
     // Défense en profondeur : résultats potentiellement désérialisés.
-    if (!tolerance.isFinite || tolerance < 0 ||
-        !epsilon.isFinite || epsilon < 0) {
-      throw GoalProgressException(GoalProgressErrorCode.invalidWeightAnalysis,
-          goalId: goalId);
+    if (!tolerance.isFinite ||
+        tolerance < 0 ||
+        !epsilon.isFinite ||
+        epsilon < 0) {
+      throw GoalProgressException(
+        GoalProgressErrorCode.invalidWeightAnalysis,
+        goalId: goalId,
+      );
     }
     final analyzedTarget = weightProgress.targetWeightKg;
     if (analyzedTarget == null) {
-      throw GoalProgressException(GoalProgressErrorCode.missingTarget,
-          goalId: goalId);
+      throw GoalProgressException(
+        GoalProgressErrorCode.missingTarget,
+        goalId: goalId,
+      );
     }
     if (!analyzedTarget.isFinite || analyzedTarget <= 0) {
-      throw GoalProgressException(GoalProgressErrorCode.invalidTarget,
-          goalId: goalId);
+      throw GoalProgressException(
+        GoalProgressErrorCode.invalidTarget,
+        goalId: goalId,
+      );
     }
     if ((analyzedTarget - targetWeightKg).abs() > epsilon) {
-      throw GoalProgressException(GoalProgressErrorCode.targetMismatch,
-          goalId: goalId);
+      throw GoalProgressException(
+        GoalProgressErrorCode.targetMismatch,
+        goalId: goalId,
+      );
     }
     final currentWeight = weightProgress.currentTrendWeightKg;
     if (currentWeight == null) {
-      return GoalProgressResult(goalId: goalId,
-          weightGoalState: WeightGoalState.unknown,
-          hasExceededWeightTarget: false);
+      return GoalProgressResult(
+        goalId: goalId,
+        weightGoalState: WeightGoalState.unknown,
+        hasExceededWeightTarget: false,
+      );
     }
     if (!currentWeight.isFinite || currentWeight <= 0) {
-      throw GoalProgressException(GoalProgressErrorCode.invalidWeightAnalysis,
-          goalId: goalId);
+      throw GoalProgressException(
+        GoalProgressErrorCode.invalidWeightAnalysis,
+        goalId: goalId,
+      );
     }
     if (!weightProgress.isTrendFresh) {
-      return GoalProgressResult(goalId: goalId,
-          weightGoalState: WeightGoalState.stale,
-          hasExceededWeightTarget: false);
+      return GoalProgressResult(
+        goalId: goalId,
+        weightGoalState: WeightGoalState.stale,
+        hasExceededWeightTarget: false,
+      );
     }
     final difference = currentWeight - targetWeightKg;
     if (!difference.isFinite) {
-      throw GoalProgressException(GoalProgressErrorCode.invalidWeightAnalysis,
-          goalId: goalId);
+      throw GoalProgressException(
+        GoalProgressErrorCode.invalidWeightAnalysis,
+        goalId: goalId,
+      );
     }
     final withinTolerance = difference.abs() <= tolerance + epsilon;
-    final exceeded = !withinTolerance && (switch (goalType) {
-      GoalType.cut => difference < -tolerance - epsilon,
-      GoalType.bulk => difference > tolerance + epsilon,
-      GoalType.maintenance => false,
-    });
+    final exceeded =
+        !withinTolerance &&
+        (switch (goalType) {
+          GoalType.cut => difference < -tolerance - epsilon,
+          GoalType.bulk => difference > tolerance + epsilon,
+          GoalType.maintenance => false,
+        });
     return GoalProgressResult(
       goalId: goalId,
       weightGoalState: withinTolerance || exceeded
-          ? WeightGoalState.reached : WeightGoalState.notReached,
+          ? WeightGoalState.reached
+          : WeightGoalState.notReached,
       hasExceededWeightTarget: exceeded,
     );
   }

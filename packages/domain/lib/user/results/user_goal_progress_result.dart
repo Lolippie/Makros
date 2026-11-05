@@ -20,20 +20,28 @@ class UserGoalProgressResult {
   });
 
   @override
-  bool operator ==(Object other) => identical(this, other) ||
-      other is UserGoalProgressResult && other.goalId == goalId &&
-      other.evaluationState == evaluationState &&
-      other.weightProgress == weightProgress &&
-      other.shouldMarkWeightAchieved == shouldMarkWeightAchieved &&
-      other.shouldSuggestNutritionRecalculation ==
-          shouldSuggestNutritionRecalculation;
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserGoalProgressResult &&
+          other.goalId == goalId &&
+          other.evaluationState == evaluationState &&
+          other.weightProgress == weightProgress &&
+          other.shouldMarkWeightAchieved == shouldMarkWeightAchieved &&
+          other.shouldSuggestNutritionRecalculation ==
+              shouldSuggestNutritionRecalculation;
 
   @override
-  int get hashCode => Object.hash(goalId, evaluationState, weightProgress,
-      shouldMarkWeightAchieved, shouldSuggestNutritionRecalculation);
+  int get hashCode => Object.hash(
+    goalId,
+    evaluationState,
+    weightProgress,
+    shouldMarkWeightAchieved,
+    shouldSuggestNutritionRecalculation,
+  );
 
   @override
-  String toString() => 'UserGoalProgressResult(goalId: $goalId, '
+  String toString() =>
+      'UserGoalProgressResult(goalId: $goalId, '
       'evaluationState: $evaluationState, weightProgress: $weightProgress, '
       'shouldMarkWeightAchieved: $shouldMarkWeightAchieved, '
       'shouldSuggestNutritionRecalculation: '

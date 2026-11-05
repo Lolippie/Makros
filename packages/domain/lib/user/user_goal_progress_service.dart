@@ -26,37 +26,47 @@ class UserGoalProgressService {
     try {
       goal.validate();
     } on ArgumentError {
-      throw GoalProgressException(GoalProgressErrorCode.invalidGoal,
-          goalId: goal.id);
+      throw GoalProgressException(
+        GoalProgressErrorCode.invalidGoal,
+        goalId: goal.id,
+      );
     }
     final day = civilDay(asOf);
     for (final analysis in [weightProgress, nutritionWeightProgress]) {
       if (analysis == null) continue;
       if (analysis.userId != goal.userId) {
-        throw GoalProgressException(GoalProgressErrorCode.userMismatch,
-            goalId: goal.id);
+        throw GoalProgressException(
+          GoalProgressErrorCode.userMismatch,
+          goalId: goal.id,
+        );
       }
       if (analysis.asOfDay != day) {
-        throw GoalProgressException(GoalProgressErrorCode.analysisDateMismatch,
-            goalId: goal.id);
+        throw GoalProgressException(
+          GoalProgressErrorCode.analysisDateMismatch,
+          goalId: goal.id,
+        );
       }
     }
     // La suggestion de nutrition est indépendante de la présence/activité
     // d'une cible de poids. Seule l'analyse globale la produit.
     if (nutritionWeightProgress?.earliestMeasurementDate != null) {
-      throw GoalProgressException(GoalProgressErrorCode.invalidWeightAnalysis,
-          goalId: goal.id);
+      throw GoalProgressException(
+        GoalProgressErrorCode.invalidWeightAnalysis,
+        goalId: goal.id,
+      );
     }
     final recalc = nutritionWeightProgress?.shouldSuggestRecalculation ?? false;
-    UserGoalProgressResult result(UserGoalEvaluationState state,
-        [GoalProgressResult? progress, bool shouldMark = false]) =>
-        UserGoalProgressResult(
-          goalId: goal.id,
-          evaluationState: state,
-          weightProgress: progress,
-          shouldMarkWeightAchieved: shouldMark,
-          shouldSuggestNutritionRecalculation: recalc,
-        );
+    UserGoalProgressResult result(
+      UserGoalEvaluationState state, [
+      GoalProgressResult? progress,
+      bool shouldMark = false,
+    ]) => UserGoalProgressResult(
+      goalId: goal.id,
+      evaluationState: state,
+      weightProgress: progress,
+      shouldMarkWeightAchieved: shouldMark,
+      shouldSuggestNutritionRecalculation: recalc,
+    );
 
     final start = civilDay(goal.startDate);
     final end = goal.endDate == null ? null : civilDay(goal.endDate!);
@@ -72,8 +82,10 @@ class UserGoalProgressService {
     // Aucune analyse globale ou filtrée à une autre date ne doit pouvoir
     // marquer irréversiblement un objectif historique.
     if (weightProgress.earliestMeasurementDate != start) {
-      throw GoalProgressException(GoalProgressErrorCode.measurementPeriodMismatch,
-          goalId: goal.id);
+      throw GoalProgressException(
+        GoalProgressErrorCode.measurementPeriodMismatch,
+        goalId: goal.id,
+      );
     }
     final progress = goalProgressService.analyzeWeightGoal(
       goalId: goal.id,
@@ -81,7 +93,8 @@ class UserGoalProgressService {
       targetWeightKg: goal.targetWeight!,
       goalType: goal.type,
     );
-    final shouldMark = goal.type != GoalType.maintenance &&
+    final shouldMark =
+        goal.type != GoalType.maintenance &&
         !goal.targetWeightAchieved &&
         progress.weightGoalState == WeightGoalState.reached &&
         weightProgress.lastMeasurementDate != null &&
