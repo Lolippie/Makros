@@ -119,6 +119,123 @@ void main() {
         1100,
       );
     });
+    test('keeps starting calories exactly on the start date', () {
+      final item = transition();
+
+      expect(
+        service.calculateCaloriesAtDate(
+          transition: item,
+          date: day(0, hour: 23),
+        ),
+        1000,
+      );
+    });
+
+    test('does not apply a step before its scheduled day', () {
+      final item = transition();
+
+      expect(
+        service.calculateCaloriesAtDate(
+          transition: item,
+          date: day(1, hour: 23),
+        ),
+        1000,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(2)),
+        1100,
+      );
+    });
+
+    test('supports a transition with a non-divisible calorie difference', () {
+      final item = transition(
+        startingCalories: 1000,
+        targetCalories: 1250,
+        stepCalories: 100,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(4)),
+        1200,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(6)),
+        1250,
+      );
+    });
+
+    test('preserves historical calories after cancellation', () {
+      final item = transition(
+        status: NutritionTransitionStatus.cancelled,
+        cancelledAt: day(3),
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(0)),
+        1000,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(2)),
+        1100,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(10)),
+        1100,
+      );
+    });
+
+    test('preserves historical calories after completion', () {
+      final item = transition(
+        targetCalories: 1100,
+        status: NutritionTransitionStatus.completed,
+        completedAt: day(4),
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(0)),
+        1000,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(2)),
+        1100,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(transition: item, date: day(10)),
+        1100,
+      );
+    });
+
+    test('uses calendar days across daylight saving transitions', () {
+      final item = transition(
+        startDate: DateTime(2026, 3, 28),
+        startingCalories: 2000,
+        targetCalories: 2200,
+        stepCalories: 100,
+        stepDurationDays: 2,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(
+          transition: item,
+          date: DateTime(2026, 3, 29),
+        ),
+        2000,
+      );
+
+      expect(
+        service.calculateCaloriesAtDate(
+          transition: item,
+          date: DateTime(2026, 3, 30),
+        ),
+        2100,
+      );
+    });
   });
 
   group('calculateProgress', () {
@@ -188,6 +305,44 @@ void main() {
         expect(cancelled.nextStepDate, isNull);
       },
     );
+
+    test('reports zero progress at the transition start', () {
+      final result = service.calculateProgress(
+        transition: transition(),
+        date: day(0),
+      );
+
+      expect(result.currentCalories, 1000);
+      expect(result.progressPercentage, 0);
+      expect(result.status, NutritionTransitionStatus.inProgress);
+      expect(result.isCompleted, isFalse);
+    });
+
+    test('calculates progress correctly for decreasing transitions', () {
+      final result = service.calculateProgress(
+        transition: transition(startingCalories: 1500, targetCalories: 1200),
+        date: day(2),
+      );
+
+      expect(result.currentCalories, 1400);
+      expect(result.progressPercentage, closeTo(100 / 3, 0.0001));
+      expect(result.status, NutritionTransitionStatus.inProgress);
+    });
+
+    test('does not mark a cancelled transition as completed', () {
+      final result = service.calculateProgress(
+        transition: transition(
+          status: NutritionTransitionStatus.cancelled,
+          cancelledAt: day(3),
+        ),
+        date: day(20),
+      );
+
+      expect(result.currentCalories, 1100);
+      expect(result.status, NutritionTransitionStatus.cancelled);
+      expect(result.isCompleted, isFalse);
+      expect(result.nextStepDate, isNull);
+    });
   });
 
   group('calculateNextStepDate', () {
@@ -217,6 +372,33 @@ void main() {
         );
       },
     );
+
+    test('returns the first step even before the transition starts', () {
+      final result = service.calculateNextStepDate(
+        transition: transition(),
+        date: day(-5),
+      );
+
+      expect(result, day(2));
+    });
+
+    test('returns the next step after the current boundary', () {
+      final result = service.calculateNextStepDate(
+        transition: transition(),
+        date: day(2),
+      );
+
+      expect(result, day(4));
+    });
+
+    test('returns null when the final target has been reached', () {
+      final result = service.calculateNextStepDate(
+        transition: transition(),
+        date: day(6),
+      );
+
+      expect(result, isNull);
+    });
   });
 
   group('validation', () {
