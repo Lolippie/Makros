@@ -1,5 +1,3 @@
-
-
 import 'macros.dart';
 import 'meal_item.dart';
 import 'meal_type.dart';
@@ -33,12 +31,7 @@ class DailyMeal {
 
   Macros get totalMacros {
     return items.fold(
-      const Macros(
-        calories: 0,
-        protein: 0,
-        carbohydrates: 0,
-        fat: 0,
-      ),
+      const Macros(calories: 0, protein: 0, carbohydrates: 0, fat: 0),
       (total, item) => total + item.macros,
     );
   }

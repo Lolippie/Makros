@@ -1,14 +1,6 @@
-enum NutritionTransitionStatus {
-  pending,
-  inProgress,
-  completed,
-  paused,
-}
+enum NutritionTransitionStatus { pending, inProgress, completed, paused }
 
-enum NutritionTransitionDirection {
-  increase,
-  decrease,
-}
+enum NutritionTransitionDirection { increase, decrease }
 
 class NutritionTransition {
   final String id;

@@ -1,5 +1,3 @@
-
-
 import 'body_fat_history.dart';
 import 'muscle_mass_history.dart';
 import 'user_goal.dart';
@@ -31,11 +29,9 @@ class UserStatistics {
   // Valeurs actuelles
   double? get currentWeight => latestWeight?.weight;
 
-  double? get currentBodyFat =>
-      latestBodyFat?.bodyFatPercentage;
+  double? get currentBodyFat => latestBodyFat?.bodyFatPercentage;
 
-  double? get currentMuscleMass =>
-      latestMuscleMass?.muscleMassPercentage;
+  double? get currentMuscleMass => latestMuscleMass?.muscleMassPercentage;
 
   // Vérification de l'existence d'un objectif
   bool get hasActiveGoal => activeGoal != null;

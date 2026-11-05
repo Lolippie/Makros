@@ -27,14 +27,12 @@ class ShoppingList {
   int get totalItems => items.length;
 
   // Nombre d'articles achetés
-  int get purchasedItems => items
-      .where((item) => item.status == ShoppingItemStatus.purchased)
-      .length;
+  int get purchasedItems =>
+      items.where((item) => item.status == ShoppingItemStatus.purchased).length;
 
   // Nombre d'articles restant à acheter
-  int get remainingItems => items
-      .where((item) => item.status == ShoppingItemStatus.toBuy)
-      .length;
+  int get remainingItems =>
+      items.where((item) => item.status == ShoppingItemStatus.toBuy).length;
 
   // Progression des courses en pourcentage
   double get completionPercentage {

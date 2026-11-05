@@ -1,4 +1,3 @@
-
 import '../alimentation/macros.dart';
 import 'sport_type.dart';
 

@@ -1,4 +1,3 @@
-
 import 'shopping_item_statut.dart';
 
 class ShoppingItem {

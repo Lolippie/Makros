@@ -1,6 +1,1 @@
-enum ShoppingItemStatus {
-  toBuy,
-  purchased,
-  unavailable,
-  cancelled,
-}
+enum ShoppingItemStatus { toBuy, purchased, unavailable, cancelled }

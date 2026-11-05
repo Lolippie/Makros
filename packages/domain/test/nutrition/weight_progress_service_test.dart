@@ -77,16 +77,8 @@ void main() {
     expect(run([m(0, 66), m(1, 66), m(2, 66)]).shouldSuggestRecalculation, isTrue);
     expect(run([m(0, 64.001), m(1, 64.001), m(2, 64.001)]).shouldSuggestRecalculation, isFalse);
   });
-  test('goal statuses distinguish not reached, reached, exceeded and unknown', () {
+  test('remainingToTargetKg stays a signed difference', () {
     List<WeightHistory> data(double kg) => [m(0, kg), m(1, kg), m(2, kg)];
-    expect(run(data(64), target: 60).goalProgressStatus, WeightGoalProgressStatus.notReached);
-    expect(run(data(60), target: 60).goalProgressStatus, WeightGoalProgressStatus.reached);
-    expect(run(data(59), target: 60).goalProgressStatus, WeightGoalProgressStatus.exceeded);
-    expect(run(data(66), target: 70).goalProgressStatus, WeightGoalProgressStatus.notReached);
-    expect(run(data(71), target: 70).goalProgressStatus, WeightGoalProgressStatus.exceeded);
-    expect(run(data(65), target: 65).goalProgressStatus, WeightGoalProgressStatus.reached);
-    expect(run(data(64), target: 65).goalProgressStatus, WeightGoalProgressStatus.notReached);
-    expect(run(data(64)).goalProgressStatus, WeightGoalProgressStatus.unknown);
     expect(run(data(64), target: 60).remainingToTargetKg, -4);
   });
   test('does not mutate input list, objects or order', () {
@@ -232,10 +224,9 @@ void main() {
     }
   });
 
-  test('statut historique reste disponible malgré des pesées anciennes', () {
+  test('une tendance périmée est signalée', () {
     final r = run([m(4, 60), m(5, 60), m(6, 60)], target: 60);
     expect(r.isTrendFresh, isFalse);
-    expect(r.goalProgressStatus, WeightGoalProgressStatus.reached);
   });
 
   test('config rejette les paramètres de fenêtre impossibles', () {
@@ -281,10 +272,9 @@ void main() {
     expect(result.currentTrendWeightKg, 64);
   });
 
-  test('statut historique conservé si données périmées', () {
+  test('données périmées non utilisables actuellement', () {
     final result = run([m(4, 60), m(5, 60), m(6, 60)], target: 60);
     expect(result.isTrendFresh, isFalse);
-    expect(result.goalProgressStatus, WeightGoalProgressStatus.reached);
     expect(result.hasUsableData, isFalse);
   });
 

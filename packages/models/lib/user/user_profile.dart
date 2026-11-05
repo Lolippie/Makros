@@ -1,7 +1,4 @@
-enum Gender {
-  male,
-  female,
-}
+enum Gender { male, female }
 
 enum ActivityLevel {
   sedentary,
@@ -37,8 +34,7 @@ class UserProfile {
     this.lastName,
     required this.createdAt,
     required this.updatedAt,
-        required this.activityLevel,
-
+    required this.activityLevel,
   });
 
   // Âge calculé automatiquement
@@ -48,8 +44,7 @@ class UserProfile {
     int result = now.year - birthDate.year;
 
     if (now.month < birthDate.month ||
-        (now.month == birthDate.month &&
-            now.day < birthDate.day)) {
+        (now.month == birthDate.month && now.day < birthDate.day)) {
       result--;
     }
 

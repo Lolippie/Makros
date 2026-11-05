@@ -17,8 +17,8 @@ export 'exceptions/weight_progress_exception.dart';
 /// même si elles ont un identifiant en double ou une valeur invalide.
 /// Les doublons et identifiants vides sont rejetés uniquement dans ce périmètre.
 ///
-/// Les statuts de tendance et d'objectif sont historiques : leur affichage
-/// comme état actuel nécessite de vérifier [WeightProgressResult.isTrendFresh].
+/// Le statut de tendance est historique : vérifier isTrendFresh avant affichage.
+/// L’atteinte des objectifs est évaluée par GoalProgressService.
 class WeightProgressService {
   final WeightProgressConfig config;
 
@@ -30,6 +30,7 @@ class WeightProgressService {
     required double referenceWeightKg,
     required DateTime asOf,
     double? targetWeightKg,
+    DateTime? earliestMeasurementDate,
   }) {
     config.validate();
     if (userId.trim().isEmpty) {
@@ -45,6 +46,9 @@ class WeightProgressService {
       Duration(days: 2 * config.trendWindowDays - 1),
     );
     // Même origine pour les centres des deux fenêtres.
+    final cutoff = earliestMeasurementDate == null
+        ? null
+        : civilDay(earliestMeasurementDate);
     final centerOrigin = earliest;
     final grouped = <DateTime, List<double>>{};
     final ids = <String>{};
@@ -52,7 +56,8 @@ class WeightProgressService {
     for (final measurement in measurements) {
       if (measurement.userId != userId) continue;
       final day = civilDay(measurement.measuredAt);
-      if (day.isBefore(earliest) || day.isAfter(asOfDay)) continue;
+      if (day.isBefore(earliest) || day.isAfter(asOfDay) ||
+          (cutoff != null && day.isBefore(cutoff))) continue;
       if (measurement.id.trim().isEmpty) {
         throw WeightProgressException(
           WeightProgressErrorCode.invalidMeasurement,
@@ -114,6 +119,9 @@ class WeightProgressService {
         : _finiteProduct(between, 7.0 / spacingDays, asOfDay);
 
     return WeightProgressResult(
+      userId: userId,
+      asOfDay: asOfDay,
+      earliestMeasurementDate: cutoff,
       referenceWeightKg: referenceWeightKg,
       currentTrendWeightKg: currentMean,
       previousTrendWeightKg: previousMean,
@@ -127,12 +135,10 @@ class WeightProgressService {
       lastMeasurementDate: latest,
       isTrendFresh: fresh,
       trendStatus: _trendStatus(currentMean: currentMean, between: between),
-      goalProgressStatus: _goalStatus(
-        currentMean: currentMean, reference: referenceWeightKg,
-        target: targetWeightKg,
-      ),
       shouldSuggestRecalculation: fresh && delta != null &&
           delta.abs() + config.comparisonEpsilonKg >= config.recalculationThresholdKg,
+            goalToleranceKg: config.goalToleranceKg,
+  comparisonEpsilonKg: config.comparisonEpsilonKg,
     );
   }
 
@@ -146,21 +152,6 @@ class WeightProgressService {
       return WeightTrendStatus.increasing;
     }
     return WeightTrendStatus.stable;
-  }
-
-  WeightGoalProgressStatus _goalStatus({
-    required double? currentMean, required double reference, required double? target,
-  }) {
-    if (currentMean == null || target == null) return WeightGoalProgressStatus.unknown;
-    final difference = _finiteDifference(currentMean, target, null);
-    if (difference.abs() <= config.goalToleranceKg + config.comparisonEpsilonKg) {
-      return WeightGoalProgressStatus.reached;
-    }
-    if ((target - reference).abs() <= config.comparisonEpsilonKg) {
-      return WeightGoalProgressStatus.notReached;
-    }
-    final exceeded = target < reference ? difference < 0 : difference > 0;
-    return exceeded ? WeightGoalProgressStatus.exceeded : WeightGoalProgressStatus.notReached;
   }
 
   _WeightWindow _window(

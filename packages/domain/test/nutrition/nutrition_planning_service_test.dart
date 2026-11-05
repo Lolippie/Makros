@@ -162,11 +162,13 @@ void main() {
 
         expect(
           () => service.calculateActivityScore(day: day),
-          throwsA(isA<NutritionPlanningException>().having(
-            (error) => error.code,
-            'code',
-            NutritionPlanningErrorCode.invalidActivityDuration,
-          )),
+          throwsA(
+            isA<NutritionPlanningException>().having(
+              (error) => error.code,
+              'code',
+              NutritionPlanningErrorCode.invalidActivityDuration,
+            ),
+          ),
         );
       });
 
@@ -178,11 +180,13 @@ void main() {
 
         expect(
           () => service.calculateActivityScore(day: day),
-          throwsA(isA<NutritionPlanningException>().having(
-            (error) => error.code,
-            'code',
-            NutritionPlanningErrorCode.invalidActivityDuration,
-          )),
+          throwsA(
+            isA<NutritionPlanningException>().having(
+              (error) => error.code,
+              'code',
+              NutritionPlanningErrorCode.invalidActivityDuration,
+            ),
+          ),
         );
       });
     });
@@ -530,11 +534,13 @@ void main() {
       test('rejette moins de sept journées', () {
         expect(
           () => calculate(days: createDays().take(6).toList()),
-          throwsA(isA<NutritionPlanningException>().having(
-            (error) => error.code,
-            'code',
-            NutritionPlanningErrorCode.invalidDayCount,
-          )),
+          throwsA(
+            isA<NutritionPlanningException>().having(
+              (error) => error.code,
+              'code',
+              NutritionPlanningErrorCode.invalidDayCount,
+            ),
+          ),
         );
       });
 
@@ -549,11 +555,16 @@ void main() {
           hasActivity: false,
         );
 
-        expect(() => calculate(days: duplicateDays), throwsA(isA<NutritionPlanningException>().having(
-            (error) => error.code,
-            'code',
-            NutritionPlanningErrorCode.duplicateDay,
-          )));
+        expect(
+          () => calculate(days: duplicateDays),
+          throwsA(
+            isA<NutritionPlanningException>().having(
+              (error) => error.code,
+              'code',
+              NutritionPlanningErrorCode.duplicateDay,
+            ),
+          ),
+        );
       });
 
       test('rejette les journées non consécutives', () {
@@ -568,11 +579,16 @@ void main() {
           hasActivity: false,
         );
 
-        expect(() => calculate(days: invalidDays), throwsA(isA<NutritionPlanningException>().having(
-            (error) => error.code,
-            'code',
-            NutritionPlanningErrorCode.nonConsecutiveDays,
-          )));
+        expect(
+          () => calculate(days: invalidDays),
+          throwsA(
+            isA<NutritionPlanningException>().having(
+              (error) => error.code,
+              'code',
+              NutritionPlanningErrorCode.nonConsecutiveDays,
+            ),
+          ),
+        );
       });
 
       test('rejette une référence manquante', () {
@@ -581,11 +597,13 @@ void main() {
 
         expect(
           () => calculate(days: createDays(), references: references),
-          throwsA(isA<NutritionPlanningException>().having(
-            (error) => error.code,
-            'code',
-            NutritionPlanningErrorCode.missingReference,
-          )),
+          throwsA(
+            isA<NutritionPlanningException>().having(
+              (error) => error.code,
+              'code',
+              NutritionPlanningErrorCode.missingReference,
+            ),
+          ),
         );
       });
 
@@ -609,11 +627,13 @@ void main() {
             days: createDays(),
             references: createReferences(calories: -100),
           ),
-          throwsA(isA<NutritionPlanningException>().having(
-            (error) => error.code,
-            'code',
-            NutritionPlanningErrorCode.invalidReference,
-          )),
+          throwsA(
+            isA<NutritionPlanningException>().having(
+              (error) => error.code,
+              'code',
+              NutritionPlanningErrorCode.invalidReference,
+            ),
+          ),
         );
       });
 
@@ -623,11 +643,13 @@ void main() {
             days: createDays(),
             references: createReferences(calories: double.infinity),
           ),
-          throwsA(isA<NutritionPlanningException>().having(
-            (error) => error.code,
-            'code',
-            NutritionPlanningErrorCode.invalidReference,
-          )),
+          throwsA(
+            isA<NutritionPlanningException>().having(
+              (error) => error.code,
+              'code',
+              NutritionPlanningErrorCode.invalidReference,
+            ),
+          ),
         );
       });
 

@@ -1,14 +1,10 @@
-
 import 'macros.dart';
 
 class NutritionVariance {
   final Macros target;
   final Macros consumed;
 
-  const NutritionVariance({
-    required this.target,
-    required this.consumed,
-  });
+  const NutritionVariance({required this.target, required this.consumed});
 
   Macros get difference => Macros(
     calories: consumed.calories - target.calories,

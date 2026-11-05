@@ -1,10 +1,4 @@
-
-enum NutritionTransitionStatus {
-  pending,
-  inProgress,
-  completed,
-  cancelled,
-}
+enum NutritionTransitionStatus { pending, inProgress, completed, cancelled }
 
 class NutritionTransition {
   final String id;
@@ -27,7 +21,7 @@ class NutritionTransition {
 
   /// Date réelle de fin, si la transition est terminée.
   final DateTime? completedAt;
-final DateTime? cancelledAt;
+  final DateTime? cancelledAt;
 
   const NutritionTransition({
     required this.id,

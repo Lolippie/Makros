@@ -1,9 +1,1 @@
-enum SportType {
-  gym,
-  running,
-  walking,
-  cycling,
-  swimming,
-  cardio,
-  other,
-}
+enum SportType { gym, running, walking, cycling, swimming, cardio, other }

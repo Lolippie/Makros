@@ -1,9 +1,4 @@
-enum NutritionComparison {
-  below,
-  reached,
-  exceeded,
-  unknown,
-}
+enum NutritionComparison { below, reached, exceeded, unknown }
 
 class SecondaryNutrients {
   final double? fiber;

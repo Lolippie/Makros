@@ -6,40 +6,38 @@ enum WeightTrendStatus {
   increasing,
 }
 
-enum WeightGoalProgressStatus { unknown, notReached, reached, exceeded }
-
-/// Résultat immuable : ne modifie ni les objectifs ni les pesées.
+/// Snapshot immuable d'une analyse de pesées, sans décision d'atteinte d'objectif.
 class WeightProgressResult {
+  /// Utilisateur auquel appartiennent les pesées analysées.
+  final String userId;
+  /// Jour civil inclusif de l'analyse.
+  final DateTime asOfDay;
+  /// Date minimale réellement appliquée aux mesures, ou null pour l'analyse globale.
+  final DateTime? earliestMeasurementDate;
   final double referenceWeightKg;
   final double? currentTrendWeightKg;
   final double? previousTrendWeightKg;
   final double? changeFromReferenceKg;
   final double? changeBetweenWindowsKg;
-  /// Estimation en kg/semaine basée sur les dates réellement mesurées.
-  /// Null si les centres temporels sont trop proches pour une estimation fiable.
   final double? weeklyWeightChangeKg;
   final double? targetWeightKg;
-  /// Cible moins moyenne actuelle (valeur signée).
   final double? remainingToTargetKg;
   final int measurementDaysInCurrentWindow;
   final int measurementDaysInPreviousWindow;
-  /// Dernier jour mesuré dans la fenêtre actuelle. Peut être non nul même
-  /// lorsque currentTrendWeightKg est nul (données insuffisantes).
   final DateTime? lastMeasurementDate;
-  /// Indique si la dernière pesée de la fenêtre actuelle est assez récente.
-  /// trendStatus et goalProgressStatus décrivent une analyse historique :
-  /// ils peuvent être renseignés même si isTrendFresh est false.
-  /// L’interface doit vérifier isTrendFresh avant d’afficher un statut actuel.
-  /// Une valeur false ne supprime pas les statuts historiques.
+  /// La tendance est assez récente; trendStatus peut rester historique.
   final bool isTrendFresh;
   final WeightTrendStatus trendStatus;
-  final WeightGoalProgressStatus goalProgressStatus;
-  /// Suggestion uniquement si la tendance est fraîche et si l’écart absolu
-  /// au poids de référence atteint le seuil de configuration (avec epsilon).
-  /// Ne déclenche aucun recalcul ni aucune modification.
   final bool shouldSuggestRecalculation;
+  /// Demi-largeur en kg de la zone cible, utilisée par GoalProgressService.
+  final double goalToleranceKg;
+  /// Tolérance numérique en kg ajoutée aux bornes des comparaisons.
+  final double comparisonEpsilonKg;
 
   const WeightProgressResult({
+    required this.userId,
+    required this.asOfDay,
+    required this.earliestMeasurementDate,
     required this.referenceWeightKg,
     required this.currentTrendWeightKg,
     required this.previousTrendWeightKg,
@@ -53,63 +51,44 @@ class WeightProgressResult {
     required this.lastMeasurementDate,
     required this.isTrendFresh,
     required this.trendStatus,
-    required this.goalProgressStatus,
     required this.shouldSuggestRecalculation,
+    required this.goalToleranceKg,
+    required this.comparisonEpsilonKg,
   });
 
   bool get hasSufficientData => currentTrendWeightKg != null;
   bool get hasComparableData =>
       currentTrendWeightKg != null && previousTrendWeightKg != null;
-  /// Nom explicite pour l’UI ; actuellement équivalent à isTrendFresh,
-  /// puisque le service exige une moyenne disponible pour être « frais ».
   bool get hasUsableData => hasSufficientData && isTrendFresh;
-  /// Indique qu’un statut historique est disponible, même si les données
-  /// ne sont plus fraîches : consulter isTrendFresh pour un affichage actuel.
-  bool get hasEvaluableGoal =>
-      goalProgressStatus != WeightGoalProgressStatus.unknown;
 
-  /// Égalité par valeur pour les tests et les comparaisons de snapshots.
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is WeightProgressResult &&
-          other.referenceWeightKg == referenceWeightKg &&
-          other.currentTrendWeightKg == currentTrendWeightKg &&
-          other.previousTrendWeightKg == previousTrendWeightKg &&
-          other.changeFromReferenceKg == changeFromReferenceKg &&
-          other.changeBetweenWindowsKg == changeBetweenWindowsKg &&
-          other.weeklyWeightChangeKg == weeklyWeightChangeKg &&
-          other.targetWeightKg == targetWeightKg &&
-          other.remainingToTargetKg == remainingToTargetKg &&
-          other.measurementDaysInCurrentWindow == measurementDaysInCurrentWindow &&
-          other.measurementDaysInPreviousWindow == measurementDaysInPreviousWindow &&
-          other.lastMeasurementDate == lastMeasurementDate &&
-          other.isTrendFresh == isTrendFresh &&
-          other.trendStatus == trendStatus &&
-          other.goalProgressStatus == goalProgressStatus &&
-          other.shouldSuggestRecalculation == shouldSuggestRecalculation;
+  List<Object?> get _values => [
+    userId, asOfDay, earliestMeasurementDate, referenceWeightKg,
+    currentTrendWeightKg, previousTrendWeightKg, changeFromReferenceKg,
+    changeBetweenWindowsKg, weeklyWeightChangeKg, targetWeightKg,
+    remainingToTargetKg, measurementDaysInCurrentWindow,
+    measurementDaysInPreviousWindow, lastMeasurementDate, isTrendFresh,
+    trendStatus, shouldSuggestRecalculation, goalToleranceKg,
+    comparisonEpsilonKg,
+  ];
 
   @override
-  int get hashCode => Object.hashAll([
-        referenceWeightKg,
-        currentTrendWeightKg,
-        previousTrendWeightKg,
-        changeFromReferenceKg,
-        changeBetweenWindowsKg,
-        weeklyWeightChangeKg,
-        targetWeightKg,
-        remainingToTargetKg,
-        measurementDaysInCurrentWindow,
-        measurementDaysInPreviousWindow,
-        lastMeasurementDate,
-        isTrendFresh,
-        trendStatus,
-        goalProgressStatus,
-        shouldSuggestRecalculation,
-      ]);
+  bool operator ==(Object other) => identical(this, other) ||
+      other is WeightProgressResult && _sameValues(_values, other._values);
+
+  static bool _sameValues(List<Object?> a, List<Object?> b) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(_values);
 
   @override
   String toString() => 'WeightProgressResult('
+      'userId: $userId, asOfDay: $asOfDay, '
+      'earliestMeasurementDate: $earliestMeasurementDate, '
       'referenceWeightKg: $referenceWeightKg, '
       'currentTrendWeightKg: $currentTrendWeightKg, '
       'previousTrendWeightKg: $previousTrendWeightKg, '
@@ -121,9 +100,8 @@ class WeightProgressResult {
       'measurementDaysInCurrentWindow: $measurementDaysInCurrentWindow, '
       'measurementDaysInPreviousWindow: $measurementDaysInPreviousWindow, '
       'lastMeasurementDate: $lastMeasurementDate, '
-      'isTrendFresh: $isTrendFresh, '
-      'trendStatus: $trendStatus, '
-      'goalProgressStatus: $goalProgressStatus, '
-      'shouldSuggestRecalculation: $shouldSuggestRecalculation)';
-
+      'isTrendFresh: $isTrendFresh, trendStatus: $trendStatus, '
+      'shouldSuggestRecalculation: $shouldSuggestRecalculation, '
+      'goalToleranceKg: $goalToleranceKg, '
+      'comparisonEpsilonKg: $comparisonEpsilonKg)';
 }

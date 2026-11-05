@@ -99,11 +99,13 @@ void main() {
 
       expect(
         () => service.calculateActivityScore(day: days[0]),
-        throwsA(isA<NutritionPlanningException>().having(
+        throwsA(
+          isA<NutritionPlanningException>().having(
             (error) => error.code,
             'code',
             NutritionPlanningErrorCode.invalidActivityDuration,
-          )),
+          ),
+        ),
       );
     });
 
@@ -295,11 +297,13 @@ void main() {
           weightKg: 65,
           goalType: GoalType.cut,
         ),
-        throwsA(isA<NutritionPlanningException>().having(
+        throwsA(
+          isA<NutritionPlanningException>().having(
             (error) => error.code,
             'code',
             NutritionPlanningErrorCode.invalidDayCount,
-          )),
+          ),
+        ),
       );
     });
 
@@ -311,11 +315,13 @@ void main() {
           weightKg: 65,
           goalType: GoalType.cut,
         ),
-        throwsA(isA<NutritionPlanningException>().having(
+        throwsA(
+          isA<NutritionPlanningException>().having(
             (error) => error.code,
             'code',
             NutritionPlanningErrorCode.missingReference,
-          )),
+          ),
+        ),
       );
     });
 
@@ -338,11 +344,13 @@ void main() {
           weightKg: 65,
           goalType: GoalType.cut,
         ),
-        throwsA(isA<NutritionPlanningException>().having(
+        throwsA(
+          isA<NutritionPlanningException>().having(
             (error) => error.code,
             'code',
             NutritionPlanningErrorCode.duplicateDay,
-          )),
+          ),
+        ),
       );
     });
 
