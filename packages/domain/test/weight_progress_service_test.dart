@@ -127,7 +127,7 @@ void main() {
     expect(r.currentTrendWeightKg, 64);
     expect(r.measurementDaysInCurrentWindow, 3);
   });
-  test('ignores later instants on the same calendar day', () {
+  test('includes all weighings on asOf civil day', () {
     final cutoff = DateTime(2026, 11, 5, 10);
     final entries = [m(1, 64), m(2, 64),
       WeightHistory(id: 'early', userId: 'user-1', weight: 64,
@@ -136,7 +136,7 @@ void main() {
         measuredAt: DateTime(2026, 11, 5, 20))];
     final r = service.analyze(userId: 'user-1', measurements: entries,
       referenceWeightKg: 65, asOf: cutoff);
-    expect(r.currentTrendWeightKg, 64);
+    expect(r.currentTrendWeightKg, closeTo((64 + 64 + 82) / 3, 1e-10));
   });
   test('normalizes weekly change when window is not seven days', () {
     const custom = WeightProgressService(config: WeightProgressConfig(
@@ -155,4 +155,166 @@ void main() {
     final r = run([m(0, huge), m(1, huge), m(2, huge)]);
     expect(r.currentTrendWeightKg, huge);
   });
+  test('invalid old weighing outside both windows is ignored', () {
+    final r = run([m(0, 64), m(1, 64), m(2, 64), m(40, double.nan)]);
+    expect(r.currentTrendWeightKg, 64);
+  });
+  test('duplicate measurement id within analyzed windows is rejected', () {
+    final entry = m(0, 64);
+    expect(() => run([entry, entry]), throwsA(isA<WeightProgressException>()
+        .having((e) => e.code, 'code', WeightProgressErrorCode.duplicateMeasurement)
+        .having((e) => e.measurementId, 'measurementId', entry.id)));
+  });
+  test('plausibility bounds are optional and configurable', () {
+    const bounded = WeightProgressService(config: WeightProgressConfig(
+      minimumPlausibleWeightKg: 20, maximumPlausibleWeightKg: 300));
+    expect(() => run([m(0, 700)], calculator: bounded),
+        throwsA(isA<WeightProgressException>()
+            .having((e) => e.code, 'code', WeightProgressErrorCode.invalidMeasurement)));
+  });
+  test('weekly estimate uses actual measured day centers', () {
+    final r = run([m(0, 64), m(1, 64), m(2, 64),
+      m(11, 65), m(12, 65), m(13, 65)]);
+    expect(r.weeklyWeightChangeKg, closeTo(-7 / 11, 1e-10));
+  });
+  test('freshness config must not make freshness check a no-op', () {
+    const invalid = WeightProgressService(config: WeightProgressConfig(
+      maxDaysSinceLastMeasurement: 6));
+    expect(() => run([], calculator: invalid), throwsArgumentError);
+  });
+
+  test('dates proches de 1970 ne font pas échouer le calcul des centres', () {
+    final base = DateTime.utc(1970, 1, 3);
+    final items = <WeightHistory>[
+      for (final d in [0, 1, 2, 7, 8, 9])
+        WeightHistory(
+          id: 'epoch-$d', userId: 'user-1',
+          weight: d < 7 ? 64 : 65,
+          measuredAt: base.subtract(Duration(days: d)),
+        ),
+    ];
+    final r = service.analyze(
+      userId: 'user-1', measurements: items,
+      referenceWeightKg: 65, asOf: base,
+    );
+    expect(r.weeklyWeightChangeKg, closeTo(-1, 1e-10));
+  });
+
+  test('centre temporel trop proche masque le taux hebdomadaire', () {
+    const custom = WeightProgressService(
+      config: WeightProgressConfig(
+        minimumMeasurementDays: 1,
+        minimumMeasurementSpanDays: 0,
+      ),
+    );
+    final r = run([m(6, 64), m(7, 65)], calculator: custom);
+    expect(r.changeBetweenWindowsKg, closeTo(-1, 1e-10));
+    expect(r.weeklyWeightChangeKg, isNull);
+  });
+
+  test('id vide dans une fenêtre est rejeté', () {
+    final bad = WeightHistory(
+      id: '', userId: 'user-1', weight: 64, measuredAt: today,
+    );
+    expect(() => run([bad]), throwsA(isA<WeightProgressException>()
+      .having((e) => e.code, 'code',
+          WeightProgressErrorCode.invalidMeasurement)));
+  });
+
+  test('fraction d’espacement invalide est rejetée', () {
+    for (final fraction in [0.0, -1.0, 1.1, double.nan]) {
+      final custom = WeightProgressService(
+        config: WeightProgressConfig(
+          minimumCenterSpacingFraction: fraction,
+        ),
+      );
+      expect(() => run([], calculator: custom), throwsArgumentError);
+    }
+  });
+
+  test('statut historique reste disponible malgré des pesées anciennes', () {
+    final r = run([m(4, 60), m(5, 60), m(6, 60)], target: 60);
+    expect(r.isTrendFresh, isFalse);
+    expect(r.goalProgressStatus, WeightGoalProgressStatus.reached);
+  });
+
+  test('config rejette les paramètres de fenêtre impossibles', () {
+    for (final config in [
+      const WeightProgressConfig(trendWindowDays: 0),
+      const WeightProgressConfig(trendWindowDays: 1),
+      const WeightProgressConfig(minimumMeasurementDays: 8),
+      const WeightProgressConfig(minimumMeasurementDays: 0),
+      const WeightProgressConfig(minimumMeasurementSpanDays: 7),
+      const WeightProgressConfig(maxDaysSinceLastMeasurement: 6),
+    ]) {
+      expect(config.validate, throwsArgumentError);
+    }
+  });
+
+  test('config rejette les bornes et seuils invalides', () {
+    for (final config in [
+      const WeightProgressConfig(
+        minimumPlausibleWeightKg: 200,
+        maximumPlausibleWeightKg: 100,
+      ),
+      const WeightProgressConfig(minimumPlausibleWeightKg: 0),
+      const WeightProgressConfig(stableThresholdKg: double.nan),
+      const WeightProgressConfig(comparisonEpsilonKg: -1),
+      const WeightProgressConfig(goalToleranceKg: double.infinity),
+      const WeightProgressConfig(recalculationThresholdKg: 0),
+      const WeightProgressConfig(minimumCenterSpacingFraction: double.nan),
+      const WeightProgressConfig(minimumCenterSpacingFraction: 1.01),
+    ]) {
+      expect(config.validate, throwsArgumentError);
+    }
+  });
+
+  test('doublon hors fenêtre ignoré même avec identifiant commun', () {
+    final recent = m(0, 64);
+    final old = WeightHistory(
+      id: recent.id,
+      userId: 'user-1',
+      weight: double.nan,
+      measuredAt: today.subtract(const Duration(days: 100)),
+    );
+    final result = run([recent, m(1, 64), m(2, 64), old]);
+    expect(result.currentTrendWeightKg, 64);
+  });
+
+  test('statut historique conservé si données périmées', () {
+    final result = run([m(4, 60), m(5, 60), m(6, 60)], target: 60);
+    expect(result.isTrendFresh, isFalse);
+    expect(result.goalProgressStatus, WeightGoalProgressStatus.reached);
+    expect(result.hasUsableData, isFalse);
+  });
+
+  test('fraction 1.0 accepte deux fenêtres complètes', () {
+    const custom = WeightProgressService(
+      config: WeightProgressConfig(minimumCenterSpacingFraction: 1.0),
+    );
+    final items = [
+      for (var day = 0; day < 14; day++) m(day, day < 7 ? 64 : 65),
+    ];
+    final result = run(items, calculator: custom);
+    expect(result.weeklyWeightChangeKg, closeTo(-1, 1e-10));
+  });
+
+  test('snapshots identiques ont la même égalité et le même hashCode', () {
+    final items = [m(0, 64), m(1, 64), m(2, 64)];
+    final a = run(items, target: 60);
+    final b = run(items, target: 60);
+    final c = run(items, target: 61);
+    expect(a, equals(b));
+    expect(a.hashCode, b.hashCode);
+    expect(a, isNot(equals(c)));
+    expect(a.toString(), contains('WeightProgressResult('));
+    expect(a.hasUsableData, a.isTrendFresh);
+  });
+
+  test('date de dernière mesure renseignée même si moyenne absente', () {
+    final result = run([m(0, 64)]);
+    expect(result.currentTrendWeightKg, isNull);
+    expect(result.lastMeasurementDate, DateTime.utc(2026, 11, 5));
+  });
+
 }

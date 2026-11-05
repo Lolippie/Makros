@@ -1,12 +1,18 @@
-enum WeightProgressErrorCode { invalidMeasurement, numericalFailure }
+enum WeightProgressErrorCode {
+  invalidMeasurement,
+  duplicateMeasurement,
+  numericalFailure,
+}
 
-/// Invalid stored observations or impossible numerical results.
-/// Caller parameters and service configuration use ArgumentError instead.
+/// Erreur de données enregistrées ou de calcul numérique.
 class WeightProgressException implements Exception {
   final WeightProgressErrorCode code;
   final DateTime? date;
-  const WeightProgressException(this.code, {this.date});
+  final String? measurementId;
+
+  const WeightProgressException(this.code, {this.date, this.measurementId});
 
   @override
-  String toString() => 'WeightProgressException($code, $date)';
+  String toString() =>
+      'WeightProgressException($code, date: $date, measurementId: $measurementId)';
 }
