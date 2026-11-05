@@ -3,10 +3,29 @@ import 'dart:math';
 import 'package:makros_models/models.dart';
 
 import 'config/nutrition_planning_config.dart';
+import 'exceptions/nutrition_planning_exception.dart';
 import 'macro_calculator_service.dart';
+import 'nutrition_calendar.dart';
+import 'results/macro_calculation_result.dart';
 import 'results/nutrition_planning_result.dart';
 
+/// Construit un planning nutritionnel sans modifier les données d'entrée.
+///
+/// [ArgumentError] : erreur de programmation/configuration (ex. poids invalide).
+/// [NutritionPlanningException] : incohérence de données métier (ex. date
+/// manquante, durée persistée invalide, contrat de macros rompu).
+///
+/// Option A2 : une référence déjà inférieure au minimum mathématique reste
+/// dans le résultat avec statut invalid et n'est jamais réduite davantage.
+/// Avec le coefficient global, cela peut neutraliser la redistribution.
+/// Les autres journées initialement réalisables restent réalisables.
+/// La somme hebdomadaire est conservée à l'erreur flottante près ;
+/// un clamp infinitésimal peut introduire un écart au dernier bit.
 class NutritionPlanningService {
+  static const int _planLength = 7;
+  static const double _scoreEpsilon = 1e-12;
+  static const double _relativeNumericalTolerance = 1e-12;
+
   final NutritionPlanningConfig config;
   final MacroCalculatorService macroCalculator;
 
@@ -15,292 +34,278 @@ class NutritionPlanningService {
     this.macroCalculator = const MacroCalculatorService(),
   });
 
-  /// Calcule le score d'activité d'une journée.
-  ///
-  /// Ce score sert uniquement à répartir les calories.
-  /// Il ne représente pas une estimation de dépense énergétique.
   double calculateActivityScore({required PlannedActiveDay day}) {
-    _validateConfig();
+    config.validate();
     return _calculateActivityScore(day);
   }
 
-  /// Calcule un planning nutritionnel sur sept jours consécutifs.
-  ///
-  /// Les calories de référence peuvent varier selon la journée,
-  /// notamment lorsqu'une transition nutritionnelle est en cours.
-  ///
-  /// Garanties :
-  /// - budget calorique hebdomadaire conservé, à la précision
-  ///   des nombres flottants près ;
-  /// - plafonds journaliers respectés ;
-  /// - redistribution proportionnelle aux différences d'activité ;
-  /// - redistribution limitée par la faisabilité des macros ;
-  /// - aucune modification des journées enregistrées.
+  /// Exige sept jours civils du lundi au dimanche, comme le bilan hebdomadaire.
+  /// Les références hors des sept jours sont validées mais ignorées.
   NutritionPlanningResult calculateWeeklyPlan({
     required List<PlannedActiveDay> days,
     required Map<DateTime, double> referenceCaloriesByDate,
     required double weightKg,
     required GoalType goalType,
   }) {
-    _validateConfig();
+    config.validate();
     _validatePositive(weightKg, 'Le poids');
-
-    if (days.length != 7) {
-      throw ArgumentError(
-        'Le planning doit contenir exactement sept journées.',
-      );
-    }
-
-    // --------------------------------------------------
-    // 1. Normalisation et tri des dates
-    // --------------------------------------------------
-
-    final sortedDays = [
-      ...days,
-    ]..sort((a, b) => _normalizeDate(a.date).compareTo(_normalizeDate(b.date)));
-
-    final normalizedReferences = <DateTime, double>{};
-
-    for (final entry in referenceCaloriesByDate.entries) {
-      final date = _normalizeDate(entry.key);
-
-      if (normalizedReferences.containsKey(date)) {
-        throw ArgumentError('Plusieurs références existent pour la même date.');
-      }
-
-      _validatePositive(entry.value, 'Les calories de référence');
-      normalizedReferences[date] = entry.value;
-    }
-
-    // --------------------------------------------------
-    // 2. Préparation des données journalières
-    // --------------------------------------------------
-
-    final dates = <DateTime>[];
-    final references = <double>[];
-    final scores = <double>[];
-    final limits = <double>[];
-
-    for (var i = 0; i < sortedDays.length; i++) {
-      final day = sortedDays[i];
-      final date = _normalizeDate(day.date);
-
-      if (i > 0 && date.difference(dates.last).inDays != 1) {
-        throw ArgumentError(
-          'Les sept journées doivent être consécutives et uniques.',
-        );
-      }
-
-      final referenceCalories = normalizedReferences[date];
-
-      if (referenceCalories == null) {
-        throw ArgumentError('Calories de référence manquantes pour $date.');
-      }
-
-      dates.add(date);
-      references.add(referenceCalories);
-      scores.add(_calculateActivityScore(day));
-
-      limits.add(
-        min(
-          referenceCalories * config.maxDailyVariationFraction,
-          config.maxDailyVariationCalories,
-        ),
-      );
-    }
-
-    // --------------------------------------------------
-    // 3. Calcul des scores centrés
-    // --------------------------------------------------
-
-    final averageScore = scores.reduce((a, b) => a + b) / scores.length;
-
-    final centeredScores = scores.map((score) => score - averageScore).toList();
-
-    // --------------------------------------------------
-    // 4. Minimum calorique compatible avec les macros
-    // --------------------------------------------------
-
+    final inputs = _buildInputs(days, referenceCaloriesByDate);
     final minimumCalories = macroCalculator.calculateMinimumCalories(
       weightKg: weightKg,
       goalType: goalType,
     );
-
-    // --------------------------------------------------
-    // 5. Calcul du coefficient maximal autorisé
-    // --------------------------------------------------
-
-    double maxScale = config.caloriesPerActivityScorePoint;
-
-    for (var i = 0; i < centeredScores.length; i++) {
-      final centeredScore = centeredScores[i];
-
-      // Seuls les scores exactement nuls ne produisent
-      // aucune variation et peuvent être ignorés.
-      if (centeredScore == 0.0) {
-        continue;
-      }
-
-      // Limite de variation journalière.
-      final allowedScale = limits[i] / centeredScore.abs();
-
-      maxScale = min(maxScale, allowedScale);
-
-      // Les journées moins actives perdent des calories.
-      // On empêche cette perte de rendre les protéines
-      // et les lipides mathématiquement impossibles.
-      if (centeredScore < 0) {
-        final availableCalories = references[i] - minimumCalories;
-
-        if (availableCalories <= 0) {
-          maxScale = 0.0;
-        } else {
-          final macroScale = availableCalories / centeredScore.abs();
-
-          maxScale = min(maxScale, macroScale);
-        }
-      }
+    if (!minimumCalories.isFinite || minimumCalories <= 0) {
+      throw const NutritionPlanningException(
+        NutritionPlanningErrorCode.invalidMacroContract,
+        'minimumCalories',
+      );
     }
 
-    // --------------------------------------------------
-    // 6. Calcul des calories et des macros
-    // --------------------------------------------------
+    final mean = inputs.scores.reduce((a, b) => a + b) / _planLength;
+    final centered = inputs.scores.map((score) => score - mean).toList();
+    final decision = _computeScale(inputs, centered, minimumCalories);
+    final scale = decision.scale;
 
     final results = <PlannedNutritionDayResult>[];
-
-    for (var i = 0; i < sortedDays.length; i++) {
-      final adjustment = centeredScores[i] * maxScale;
-      final plannedCalories = references[i] + adjustment;
-
+    for (var i = 0; i < _planLength; i++) {
+      final reference = inputs.references[i];
+      var planned = reference + centered[i] * scale;
+      // Correction uniquement d'une dérive flottante, pas d'une violation
+      // réelle des contraintes. Les ajustements ne sont donc pas exactement
+      // à somme nulle au dernier bit du double.
+      if (reference >= minimumCalories && planned < minimumCalories) {
+        final drift = minimumCalories - planned;
+        final tolerance =
+            _relativeNumericalTolerance *
+            max(1.0, max(reference.abs(), minimumCalories.abs()));
+        if (drift > tolerance) {
+          throw NutritionPlanningException(
+            NutritionPlanningErrorCode.numericalConstraintViolation,
+            dayLabel(inputs.dates[i]),
+          );
+        }
+        planned = minimumCalories;
+      }
+      if (!planned.isFinite || planned <= 0) {
+        throw NutritionPlanningException(
+          NutritionPlanningErrorCode.invalidMacroContract,
+          dayLabel(inputs.dates[i]),
+        );
+      }
       final macroResult = macroCalculator.calculate(
         weightKg: weightKg,
-        targetCalories: plannedCalories,
+        targetCalories: planned,
         goalType: goalType,
       );
-
+      final valid =
+          macroResult.status == MacroCalculationStatus.valid ||
+          macroResult.status == MacroCalculationStatus.warning;
+      if (valid != (macroResult.macros != null)) {
+        throw NutritionPlanningException(
+          NutritionPlanningErrorCode.invalidMacroContract,
+          dayLabel(inputs.dates[i]),
+        );
+      }
       results.add(
         PlannedNutritionDayResult(
-          date: dates[i],
-          referenceCalories: references[i],
-          plannedCalories: plannedCalories,
-          activityScore: scores[i],
+          date: inputs.dates[i],
+          referenceCalories: inputs.references[i],
+          plannedCalories: planned,
+          activityScore: inputs.scores[i],
           targetMacros: macroResult.macros,
           macroStatus: macroResult.status,
           macroIssues: List.unmodifiable(macroResult.issues),
         ),
       );
     }
-
-    return NutritionPlanningResult(days: List.unmodifiable(results));
+    return NutritionPlanningResult(
+      days: List.unmodifiable(results),
+      redistributionLimitedBy: decision.reason,
+      requestedScale: config.caloriesPerActivityScorePoint,
+      appliedScale: scale,
+      limitingDate: decision.limitingDate,
+    );
   }
 
-  // --------------------------------------------------
-  // Calcul du score d'activité
-  // --------------------------------------------------
+  _PlanningInputs _buildInputs(
+    List<PlannedActiveDay> days,
+    Map<DateTime, double> referenceCaloriesByDate,
+  ) {
+    if (days.length != _planLength) {
+      throw const NutritionPlanningException(
+        NutritionPlanningErrorCode.invalidDayCount,
+        'dayCount',
+      );
+    }
+    final sorted = [...days]
+      ..sort((a, b) => calendarDay(a.date).compareTo(calendarDay(b.date)));
+    final normalized = <DateTime, double>{};
+    for (final entry in referenceCaloriesByDate.entries) {
+      final date = calendarDay(entry.key);
+      if (normalized.containsKey(date)) {
+        throw NutritionPlanningException(
+          NutritionPlanningErrorCode.duplicateReferenceDate,
+          dayLabel(date),
+        );
+      }
+      if (!entry.value.isFinite || entry.value <= 0) {
+        throw NutritionPlanningException(
+          NutritionPlanningErrorCode.invalidReference,
+          dayLabel(date),
+        );
+      }
+      normalized[date] = entry.value;
+    }
+
+    final dates = <DateTime>[];
+    final references = <double>[];
+    final scores = <double>[];
+    final limits = <double>[];
+    for (final day in sorted) {
+      final date = calendarDay(day.date);
+      if (dates.isNotEmpty && date == dates.last) {
+        throw NutritionPlanningException(
+          NutritionPlanningErrorCode.duplicateDay,
+          dayLabel(date),
+        );
+      }
+      if (dates.isNotEmpty && date.difference(dates.last).inDays != 1) {
+        throw NutritionPlanningException(
+          NutritionPlanningErrorCode.nonConsecutiveDays,
+          dayLabel(date),
+        );
+      }
+      if (dates.isEmpty && date.weekday != DateTime.monday) {
+        throw NutritionPlanningException(
+          NutritionPlanningErrorCode.invalidWeekStart,
+          dayLabel(date),
+        );
+      }
+      final reference = normalized[date];
+      if (reference == null) {
+        throw NutritionPlanningException(
+          NutritionPlanningErrorCode.missingReference,
+          dayLabel(date),
+        );
+      }
+      dates.add(date);
+      references.add(reference);
+      scores.add(_calculateActivityScore(day));
+      limits.add(
+        min(
+          reference * config.maxDailyVariationFraction,
+          config.maxDailyVariationCalories,
+        ),
+      );
+    }
+    return _PlanningInputs(dates, references, scores, limits);
+  }
+
+  _ScaleDecision _computeScale(
+    _PlanningInputs inputs,
+    List<double> centered,
+    double minimumCalories,
+  ) {
+    var scale = config.caloriesPerActivityScorePoint;
+    var reason = RedistributionLimitReason.none;
+    DateTime? limitingDate;
+    for (var i = 0; i < _planLength; i++) {
+      final score = centered[i];
+      if (score.abs() < _scoreEpsilon) continue;
+      final dailyBound = inputs.limits[i] / score.abs();
+      if (dailyBound < scale) {
+        scale = dailyBound;
+        reason = RedistributionLimitReason.dailyLimit;
+        limitingDate = inputs.dates[i];
+      }
+      if (score >= 0) continue;
+
+      final reference = inputs.references[i];
+      if (reference < minimumCalories) {
+        // A2 : une journée déjà insuffisante ne perd aucune calorie.
+        // Le coefficient étant global, toute la semaine est neutralisée.
+        return _ScaleDecision(
+          0.0,
+          RedistributionLimitReason.minimumCalories,
+          inputs.dates[i],
+        );
+      }
+      final available = reference - minimumCalories;
+      final bound = max(0.0, available / score.abs());
+      if (bound < scale ||
+          (bound == scale &&
+              reason != RedistributionLimitReason.minimumCalories)) {
+        scale = bound;
+        reason = RedistributionLimitReason.minimumCalories;
+        limitingDate = inputs.dates[i];
+      }
+    }
+    return _ScaleDecision(scale, reason, limitingDate);
+  }
 
   double _calculateActivityScore(PlannedActiveDay day) {
-    if (!day.hasActivity) {
-      return 0.0;
-    }
-
-    final durationMinutes =
+    if (!day.hasActivity) return 0.0;
+    final duration =
         day.plannedDurationMinutes ?? config.defaultActivityDurationMinutes;
-
-    if (durationMinutes <= 0) {
-      throw ArgumentError('La durée prévue doit être strictement positive.');
+    if (duration <= 0) {
+      throw const NutritionPlanningException(
+        NutritionPlanningErrorCode.invalidActivityDuration,
+        'duration',
+      );
     }
-
-    final sportWeight = _getSportWeight(day.sportType);
-
     final score =
-        sportWeight * durationMinutes / config.referenceDurationMinutes;
-
+        _getSportWeight(day.sportType) *
+        duration /
+        config.referenceDurationMinutes;
     if (!score.isFinite) {
-      throw ArgumentError('Le score d’activité calculé est invalide.');
+      throw const NutritionPlanningException(
+        NutritionPlanningErrorCode.invalidActivityScore,
+        'activityScore',
+      );
     }
-
     return min(score, config.maxActivityScore);
   }
 
-  double _getSportWeight(SportType? sportType) {
-    switch (sportType) {
+  double _getSportWeight(SportType? type) {
+    switch (type) {
       case SportType.gym:
         return config.gymWeight;
-
       case SportType.running:
         return config.runningWeight;
-
       case SportType.walking:
         return config.walkingWeight;
-
       case SportType.cycling:
         return config.cyclingWeight;
-
       case SportType.swimming:
         return config.swimmingWeight;
-
       case SportType.cardio:
         return config.cardioWeight;
-
       case SportType.other:
       case null:
         return config.otherWeight;
     }
   }
 
-  // --------------------------------------------------
-  // Dates
-  // --------------------------------------------------
-
-  /// Normalise une date en conservant son jour calendaire.
-  ///
-  /// UTC sert ici uniquement à comparer les dates
-  /// sans subir les changements d'heure.
-  DateTime _normalizeDate(DateTime date) {
-    return DateTime.utc(date.year, date.month, date.day);
-  }
-
-  // --------------------------------------------------
-  // Validations
-  // --------------------------------------------------
-
   void _validatePositive(double value, String label) {
     if (!value.isFinite || value <= 0) {
-      throw ArgumentError('$label doit être une valeur positive et finie.');
+      throw ArgumentError('$label doit être strictement positif et fini.');
     }
   }
+}
 
-  void _validateConfig() {
-    if (!config.maxDailyVariationFraction.isFinite ||
-        config.maxDailyVariationFraction < 0 ||
-        !config.maxDailyVariationCalories.isFinite ||
-        config.maxDailyVariationCalories < 0 ||
-        !config.maxActivityScore.isFinite ||
-        config.maxActivityScore <= 0 ||
-        !config.referenceDurationMinutes.isFinite ||
-        config.referenceDurationMinutes <= 0 ||
-        config.defaultActivityDurationMinutes <= 0 ||
-        !config.caloriesPerActivityScorePoint.isFinite ||
-        config.caloriesPerActivityScorePoint < 0) {
-      throw ArgumentError(
-        'La configuration du planning nutritionnel est invalide.',
-      );
-    }
+class _PlanningInputs {
+  final List<DateTime> dates;
+  final List<double> references;
+  final List<double> scores;
+  final List<double> limits;
 
-    final weights = [
-      config.gymWeight,
-      config.runningWeight,
-      config.walkingWeight,
-      config.cyclingWeight,
-      config.swimmingWeight,
-      config.cardioWeight,
-      config.otherWeight,
-    ];
+  const _PlanningInputs(this.dates, this.references, this.scores, this.limits);
+}
 
-    if (weights.any((weight) => !weight.isFinite || weight < 0)) {
-      throw ArgumentError(
-        'Les coefficients sportifs doivent être positifs ou nuls.',
-      );
-    }
-  }
+class _ScaleDecision {
+  final double scale;
+  final RedistributionLimitReason reason;
+  final DateTime? limitingDate;
+
+  const _ScaleDecision(this.scale, this.reason, this.limitingDate);
 }

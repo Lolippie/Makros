@@ -1,10 +1,6 @@
 import 'package:makros_models/models.dart';
 
-enum MacroCalculationStatus {
-  valid,
-  warning,
-  invalid,
-}
+enum MacroCalculationStatus { valid, warning, invalid }
 
 enum MacroCalculationIssue {
   insufficientCalories,

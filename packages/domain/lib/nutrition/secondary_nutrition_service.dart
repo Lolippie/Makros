@@ -13,9 +13,7 @@ class SecondaryNutritionService {
   ///
   /// Les champs du résultat représentent des valeurs de référence,
   /// et non des quantités consommées.
-  SecondaryNutrients calculate({
-    required double targetCalories,
-  }) {
+  SecondaryNutrients calculate({required double targetCalories}) {
     if (!targetCalories.isFinite || targetCalories <= 0) {
       throw ArgumentError(
         'Les calories cibles doivent être positives et valides.',
@@ -28,14 +26,11 @@ class SecondaryNutritionService {
       // Aucun plafond déduit automatiquement pour les sucres totaux.
       sugars: null,
 
-      freeSugars:
-          targetCalories * config.maxFreeSugarsEnergyFraction / 4,
+      freeSugars: targetCalories * config.maxFreeSugarsEnergyFraction / 4,
 
-      saturatedFat:
-          targetCalories * config.maxSaturatedFatEnergyFraction / 9,
+      saturatedFat: targetCalories * config.maxSaturatedFatEnergyFraction / 9,
 
-      transFat:
-          targetCalories * config.maxTransFatEnergyFraction / 9,
+      transFat: targetCalories * config.maxTransFatEnergyFraction / 9,
 
       salt: config.maxSaltGrams,
 

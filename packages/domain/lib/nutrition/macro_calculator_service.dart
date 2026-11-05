@@ -101,10 +101,7 @@ class MacroCalculatorService {
     required GoalType goalType,
   }) {
     _validatePositive(weightKg, 'Le poids');
-_validateNonNegative(
-  config.calorieTolerance,
-  'La tolérance calorique',
-);
+    _validateNonNegative(config.calorieTolerance, 'La tolérance calorique');
 
     final coefficients = _getCoefficients(goalType);
 

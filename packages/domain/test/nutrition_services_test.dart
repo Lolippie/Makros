@@ -1,3 +1,4 @@
+import 'package:makros_nutrition/nutrition/exceptions/nutrition_planning_exception.dart';
 import 'package:makros_models/models.dart';
 
 import 'package:makros_nutrition/nutrition/macro_calculator_service.dart';
@@ -16,7 +17,7 @@ void main() {
   // HELPERS
   // ==================================================
 
-  final startDate = DateTime(2025, 1, 1);
+  final startDate = DateTime(2024, 12, 30);
 
   List<PlannedActiveDay> createWeek({
     List<int> activeDays = const [],
@@ -33,11 +34,7 @@ void main() {
       return PlannedActiveDay(
         id: 'day-$index',
         weekPlanId: 'week-1',
-        date: DateTime(
-          firstDay.year,
-          firstDay.month,
-          firstDay.day + index,
-        ),
+        date: DateTime(firstDay.year, firstDay.month, firstDay.day + index),
         hasActivity: isActive,
         sportType: isActive ? sportType : null,
         intensity: isActive ? intensity : null,
@@ -54,18 +51,11 @@ void main() {
 
     return {
       for (var i = 0; i < 7; i++)
-        DateTime(
-          firstDay.year,
-          firstDay.month,
-          firstDay.day + i,
-        ): calories,
+        DateTime(firstDay.year, firstDay.month, firstDay.day + i): calories,
     };
   }
 
-  void expectBudgetPreserved(
-    double reference,
-    double planned,
-  ) {
+  void expectBudgetPreserved(double reference, double planned) {
     expect(planned, closeTo(reference, 0.000001));
   }
 
@@ -77,20 +67,11 @@ void main() {
     const service = NutritionPlanningService();
 
     test('calculates activity scores and ignores inactive days', () {
-      final days = createWeek(
-        activeDays: [0],
-        sportType: SportType.running,
-      );
+      final days = createWeek(activeDays: [0], sportType: SportType.running);
 
-      expect(
-        service.calculateActivityScore(day: days[0]),
-        closeTo(1.3, 1e-10),
-      );
+      expect(service.calculateActivityScore(day: days[0]), closeTo(1.3, 1e-10));
 
-      expect(
-        service.calculateActivityScore(day: days[1]),
-        0.0,
-      );
+      expect(service.calculateActivityScore(day: days[1]), 0.0);
     });
 
     test('calculates activity score according to duration', () {
@@ -100,10 +81,7 @@ void main() {
         durationMinutes: 90,
       );
 
-      expect(
-        service.calculateActivityScore(day: days[0]),
-        closeTo(1.5, 1e-10),
-      );
+      expect(service.calculateActivityScore(day: days[0]), closeTo(1.5, 1e-10));
     });
 
     test('caps activity score at configured maximum', () {
@@ -113,30 +91,25 @@ void main() {
         durationMinutes: 180,
       );
 
-      expect(
-        service.calculateActivityScore(day: days[0]),
-        2.0,
-      );
+      expect(service.calculateActivityScore(day: days[0]), 2.0);
     });
 
     test('rejects invalid activity duration', () {
-      final days = createWeek(
-        activeDays: [0],
-        durationMinutes: 0,
-      );
+      final days = createWeek(activeDays: [0], durationMinutes: 0);
 
       expect(
         () => service.calculateActivityScore(day: days[0]),
-        throwsArgumentError,
+        throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.invalidActivityDuration,
+          )),
       );
     });
 
     test('creates a valid seven-day plan without exceeding limits', () {
       final result = service.calculateWeeklyPlan(
-        days: createWeek(
-          activeDays: [0],
-          sportType: SportType.running,
-        ),
+        days: createWeek(activeDays: [0], sportType: SportType.running),
         referenceCaloriesByDate: createReferences(),
         weightKg: 65,
         goalType: GoalType.cut,
@@ -179,9 +152,7 @@ void main() {
 
     test('does not redistribute calories when all scores are equal', () {
       final result = service.calculateWeeklyPlan(
-        days: createWeek(
-          activeDays: [0, 1, 2, 3, 4, 5, 6],
-        ),
+        days: createWeek(activeDays: [0, 1, 2, 3, 4, 5, 6]),
         referenceCaloriesByDate: createReferences(),
         weightKg: 65,
         goalType: GoalType.cut,
@@ -194,9 +165,7 @@ void main() {
 
     test('gives more calories to active days', () {
       final result = service.calculateWeeklyPlan(
-        days: createWeek(
-          activeDays: [0, 2, 4, 6],
-        ),
+        days: createWeek(activeDays: [0, 2, 4, 6]),
         referenceCaloriesByDate: createReferences(),
         weightKg: 65,
         goalType: GoalType.cut,
@@ -233,10 +202,7 @@ void main() {
       );
 
       for (final day in result.days) {
-        expect(
-          day.calorieAdjustment.abs(),
-          lessThanOrEqualTo(40.000001),
-        );
+        expect(day.calorieAdjustment.abs(), lessThanOrEqualTo(40.000001));
       }
 
       expectBudgetPreserved(
@@ -249,7 +215,7 @@ void main() {
       final references = createReferences();
 
       for (var i = 3; i < 7; i++) {
-        references[DateTime(2025, 1, 1 + i)] = 2100;
+        references[DateTime(2024, 12, 30 + i)] = 2100;
       }
 
       final result = service.calculateWeeklyPlan(
@@ -292,10 +258,7 @@ void main() {
       );
 
       for (final day in result.days) {
-        expect(
-          day.plannedCalories,
-          greaterThanOrEqualTo(988 - 0.000001),
-        );
+        expect(day.plannedCalories, greaterThanOrEqualTo(988 - 0.000001));
       }
 
       expectBudgetPreserved(
@@ -332,7 +295,11 @@ void main() {
           weightKg: 65,
           goalType: GoalType.cut,
         ),
-        throwsArgumentError,
+        throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.invalidDayCount,
+          )),
       );
     });
 
@@ -340,13 +307,15 @@ void main() {
       expect(
         () => service.calculateWeeklyPlan(
           days: createWeek(),
-          referenceCaloriesByDate: {
-            DateTime(2025, 1, 1): 2000,
-          },
+          referenceCaloriesByDate: {DateTime(2024, 12, 30): 2000},
           weightKg: 65,
           goalType: GoalType.cut,
         ),
-        throwsArgumentError,
+        throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.missingReference,
+          )),
       );
     });
 
@@ -369,7 +338,11 @@ void main() {
           weightKg: 65,
           goalType: GoalType.cut,
         ),
-        throwsArgumentError,
+        throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.duplicateDay,
+          )),
       );
     });
 
@@ -396,10 +369,7 @@ void main() {
         goalType: GoalType.cut,
       );
 
-      expect(
-        days.map((day) => day.id).toList(),
-        originalIds,
-      );
+      expect(days.map((day) => day.id).toList(), originalIds);
     });
 
     test('returns immutable result collections', () {
@@ -410,10 +380,7 @@ void main() {
         goalType: GoalType.cut,
       );
 
-      expect(
-        () => result.days.clear(),
-        throwsUnsupportedError,
-      );
+      expect(() => result.days.clear(), throwsUnsupportedError);
 
       expect(
         () => result.days.first.macroIssues.clear(),
@@ -474,10 +441,7 @@ void main() {
       );
 
       expect(result.status, MacroCalculationStatus.warning);
-      expect(
-        result.issues,
-        contains(MacroCalculationIssue.lowCarbohydrates),
-      );
+      expect(result.issues, contains(MacroCalculationIssue.lowCarbohydrates));
     });
 
     test('rejects invalid numeric inputs', () {
@@ -502,9 +466,7 @@ void main() {
 
     test('rejects an invalid carbohydrate warning threshold', () {
       const invalidService = MacroCalculatorService(
-        config: MacroCalculationConfig(
-          carbohydrateWarningPerKg: -1,
-        ),
+        config: MacroCalculationConfig(carbohydrateWarningPerKg: -1),
       );
 
       expect(
@@ -519,9 +481,7 @@ void main() {
 
     test('accepts a zero carbohydrate warning threshold', () {
       const customService = MacroCalculatorService(
-        config: MacroCalculationConfig(
-          carbohydrateWarningPerKg: 0,
-        ),
+        config: MacroCalculationConfig(carbohydrateWarningPerKg: 0),
       );
 
       final result = customService.calculate(
@@ -591,39 +551,21 @@ void main() {
       );
 
       expect(
-        service.compareToReference(
-          consumed: double.nan,
-          reference: 20,
-        ),
+        service.compareToReference(consumed: double.nan, reference: 20),
         NutritionComparison.unknown,
       );
     });
 
     test('checks minimum and maximum thresholds correctly', () {
-      expect(
-        service.isMinimumAchieved(consumed: 25, reference: 30),
-        isFalse,
-      );
+      expect(service.isMinimumAchieved(consumed: 25, reference: 30), isFalse);
 
-      expect(
-        service.isMinimumAchieved(consumed: 30, reference: 30),
-        isTrue,
-      );
+      expect(service.isMinimumAchieved(consumed: 30, reference: 30), isTrue);
 
-      expect(
-        service.isMaximumRespected(consumed: 5, reference: 5),
-        isTrue,
-      );
+      expect(service.isMaximumRespected(consumed: 5, reference: 5), isTrue);
 
-      expect(
-        service.isMaximumRespected(consumed: 6, reference: 5),
-        isFalse,
-      );
+      expect(service.isMaximumRespected(consumed: 6, reference: 5), isFalse);
 
-      expect(
-        service.isMaximumRespected(consumed: null, reference: 5),
-        isNull,
-      );
+      expect(service.isMaximumRespected(consumed: null, reference: 5), isNull);
     });
   });
 }

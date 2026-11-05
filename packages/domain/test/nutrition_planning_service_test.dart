@@ -1,3 +1,4 @@
+import 'package:makros_nutrition/nutrition/exceptions/nutrition_planning_exception.dart';
 import 'package:makros_nutrition/nutrition/config/nutrition_planning_config.dart';
 import 'package:makros_nutrition/nutrition/nutrition_planning_service.dart';
 import 'package:makros_nutrition/nutrition/results/macro_calculation_result.dart';
@@ -46,8 +47,7 @@ void main() {
       final start = startDate ?? monday;
 
       return {
-        for (var i = 0; i < 7; i++)
-          start.add(Duration(days: i)): calories,
+        for (var i = 0; i < 7; i++) start.add(Duration(days: i)): calories,
       };
     }
 
@@ -66,9 +66,7 @@ void main() {
       );
     }
 
-    void expectWeeklyBudgetPreserved(
-      NutritionPlanningResult result,
-    ) {
+    void expectWeeklyBudgetPreserved(NutritionPlanningResult result) {
       expect(
         result.totalPlannedCalories,
         closeTo(result.totalReferenceCalories, 0.000001),
@@ -100,23 +98,12 @@ void main() {
       test('retourne 0 pour une journée de repos', () {
         final day = createDays().first;
 
-        expect(
-          service.calculateActivityScore(day: day),
-          0,
-        );
+        expect(service.calculateActivityScore(day: day), 0);
       });
 
       test('calcule 1 pour 60 minutes de musculation', () {
         final day = createDays(
-          sports: [
-            SportType.gym,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-          ],
+          sports: [SportType.gym, null, null, null, null, null, null],
           durations: [60, null, null, null, null, null, null],
         ).first;
 
@@ -128,15 +115,7 @@ void main() {
 
       test('calcule 1.5 pour 90 minutes de musculation', () {
         final day = createDays(
-          sports: [
-            SportType.gym,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-          ],
+          sports: [SportType.gym, null, null, null, null, null, null],
           durations: [90, null, null, null, null, null, null],
         ).first;
 
@@ -148,15 +127,7 @@ void main() {
 
       test('applique le coefficient de marche', () {
         final day = createDays(
-          sports: [
-            SportType.walking,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-          ],
+          sports: [SportType.walking, null, null, null, null, null, null],
           durations: [60, null, null, null, null, null, null],
         ).first;
 
@@ -168,80 +139,50 @@ void main() {
 
       test('plafonne le score d’une activité longue', () {
         final day = createDays(
-          sports: [
-            SportType.running,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-          ],
+          sports: [SportType.running, null, null, null, null, null, null],
           durations: [180, null, null, null, null, null, null],
         ).first;
 
-        expect(
-          service.calculateActivityScore(day: day),
-          2.0,
-        );
+        expect(service.calculateActivityScore(day: day), 2.0);
       });
 
       test('utilise la durée par défaut si absente', () {
         final day = createDays(
-          sports: [
-            SportType.gym,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-          ],
+          sports: [SportType.gym, null, null, null, null, null, null],
         ).first;
 
-        expect(
-          service.calculateActivityScore(day: day),
-          1.0,
-        );
+        expect(service.calculateActivityScore(day: day), 1.0);
       });
 
       test('rejette une durée nulle pour une activité', () {
         final day = createDays(
-          sports: [
-            SportType.gym,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-          ],
+          sports: [SportType.gym, null, null, null, null, null, null],
           durations: [0, null, null, null, null, null, null],
         ).first;
 
         expect(
           () => service.calculateActivityScore(day: day),
-          throwsArgumentError,
+          throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.invalidActivityDuration,
+          )),
         );
       });
 
       test('rejette une durée négative', () {
         final day = createDays(
-          sports: [
-            SportType.gym,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-          ],
+          sports: [SportType.gym, null, null, null, null, null, null],
           durations: [-30, null, null, null, null, null, null],
         ).first;
 
         expect(
           () => service.calculateActivityScore(day: day),
-          throwsArgumentError,
+          throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.invalidActivityDuration,
+          )),
         );
       });
     });
@@ -302,10 +243,7 @@ void main() {
         for (var i = 0; i < 7; i++) {
           expect(
             result.days[i].plannedCalories,
-            closeTo(
-              i.isEven ? sportCalories : restCalories,
-              0.000001,
-            ),
+            closeTo(i.isEven ? sportCalories : restCalories, 0.000001),
           );
         }
 
@@ -344,10 +282,7 @@ void main() {
 
       test('des scores proches entraînent de petites variations', () {
         const customService = NutritionPlanningService(
-          config: NutritionPlanningConfig(
-            gymWeight: 1.0,
-            runningWeight: 1.01,
-          ),
+          config: NutritionPlanningConfig(gymWeight: 1.0, runningWeight: 1.01),
         );
 
         final result = calculate(
@@ -367,10 +302,7 @@ void main() {
         );
 
         for (final day in result.days) {
-          expect(
-            day.calorieAdjustment.abs(),
-            lessThan(2),
-          );
+          expect(day.calorieAdjustment.abs(), lessThan(2));
         }
 
         expectWeeklyBudgetPreserved(result);
@@ -379,15 +311,7 @@ void main() {
       test('respecte les plafonds journaliers', () {
         final result = calculate(
           days: createDays(
-            sports: [
-              SportType.running,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-            ],
+            sports: [SportType.running, null, null, null, null, null, null],
             durations: [180, null, null, null, null, null, null],
           ),
         );
@@ -407,47 +331,25 @@ void main() {
         final result = calculate(
           planningService: customService,
           days: createDays(
-            sports: [
-              SportType.running,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-            ],
+            sports: [SportType.running, null, null, null, null, null, null],
             durations: [180, null, null, null, null, null, null],
           ),
         );
 
-        expectDailyLimitsRespected(
-          result,
-          fraction: 0.50,
-          absoluteLimit: 40,
-        );
+        expectDailyLimitsRespected(result, fraction: 0.50, absoluteLimit: 40);
 
         expectWeeklyBudgetPreserved(result);
       });
 
       test('une intensité de redistribution nulle ne change rien', () {
         const customService = NutritionPlanningService(
-          config: NutritionPlanningConfig(
-            caloriesPerActivityScorePoint: 0,
-          ),
+          config: NutritionPlanningConfig(caloriesPerActivityScorePoint: 0),
         );
 
         final result = calculate(
           planningService: customService,
           days: createDays(
-            sports: [
-              SportType.gym,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-            ],
+            sports: [SportType.gym, null, null, null, null, null, null],
           ),
         );
 
@@ -477,19 +379,12 @@ void main() {
 
         final references = <DateTime, double>{
           for (var i = 0; i < 7; i++)
-            monday.add(Duration(days: i)):
-                i < 3 ? 2100.0 : 2000.0,
+            monday.add(Duration(days: i)): i < 3 ? 2100.0 : 2000.0,
         };
 
-        final result = calculate(
-          days: days,
-          references: references,
-        );
+        final result = calculate(days: days, references: references);
 
-        expect(
-          result.totalReferenceCalories,
-          closeTo(14300, 0.000001),
-        );
+        expect(result.totalReferenceCalories, closeTo(14300, 0.000001));
 
         expectWeeklyBudgetPreserved(result);
         expectDailyLimitsRespected(result);
@@ -499,14 +394,10 @@ void main() {
         final days = createDays();
 
         final references = <DateTime, double>{
-          for (var i = 0; i < 7; i++)
-            DateTime(2026, 11, 2 + i, 18, 30): 2000,
+          for (var i = 0; i < 7; i++) DateTime(2026, 11, 2 + i, 18, 30): 2000,
         };
 
-        final result = calculate(
-          days: days,
-          references: references,
-        );
+        final result = calculate(days: days, references: references);
 
         expect(result.days.length, 7);
         expectWeeklyBudgetPreserved(result);
@@ -518,10 +409,7 @@ void main() {
         final result = calculate(days: days);
 
         for (var i = 0; i < 7; i++) {
-          expect(
-            result.days[i].date,
-            DateTime.utc(2026, 11, 2 + i),
-          );
+          expect(result.days[i].date, DateTime.utc(2026, 11, 2 + i));
         }
       });
     });
@@ -566,10 +454,7 @@ void main() {
         );
 
         for (final day in result.days) {
-          expect(
-            day.plannedCalories,
-            greaterThanOrEqualTo(988 - 0.000001),
-          );
+          expect(day.plannedCalories, greaterThanOrEqualTo(988 - 0.000001));
         }
 
         expectWeeklyBudgetPreserved(result);
@@ -630,14 +515,9 @@ void main() {
           final macros = day.targetMacros!;
 
           final reconstructedCalories =
-              macros.protein * 4 +
-              macros.carbohydrates * 4 +
-              macros.fat * 9;
+              macros.protein * 4 + macros.carbohydrates * 4 + macros.fat * 9;
 
-          expect(
-            reconstructedCalories,
-            closeTo(day.plannedCalories, 0.001),
-          );
+          expect(reconstructedCalories, closeTo(day.plannedCalories, 0.001));
         }
       });
     });
@@ -650,7 +530,11 @@ void main() {
       test('rejette moins de sept journées', () {
         expect(
           () => calculate(days: createDays().take(6).toList()),
-          throwsArgumentError,
+          throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.invalidDayCount,
+          )),
         );
       });
 
@@ -665,10 +549,11 @@ void main() {
           hasActivity: false,
         );
 
-        expect(
-          () => calculate(days: duplicateDays),
-          throwsArgumentError,
-        );
+        expect(() => calculate(days: duplicateDays), throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.duplicateDay,
+          )));
       });
 
       test('rejette les journées non consécutives', () {
@@ -683,10 +568,11 @@ void main() {
           hasActivity: false,
         );
 
-        expect(
-          () => calculate(days: invalidDays),
-          throwsArgumentError,
-        );
+        expect(() => calculate(days: invalidDays), throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.nonConsecutiveDays,
+          )));
       });
 
       test('rejette une référence manquante', () {
@@ -694,30 +580,25 @@ void main() {
         references.remove(monday);
 
         expect(
-          () => calculate(
-            days: createDays(),
-            references: references,
-          ),
-          throwsArgumentError,
+          () => calculate(days: createDays(), references: references),
+          throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.missingReference,
+          )),
         );
       });
 
       test('rejette un poids négatif', () {
         expect(
-          () => calculate(
-            days: createDays(),
-            weightKg: -65,
-          ),
+          () => calculate(days: createDays(), weightKg: -65),
           throwsArgumentError,
         );
       });
 
       test('rejette un poids NaN', () {
         expect(
-          () => calculate(
-            days: createDays(),
-            weightKg: double.nan,
-          ),
+          () => calculate(days: createDays(), weightKg: double.nan),
           throwsArgumentError,
         );
       });
@@ -728,7 +609,11 @@ void main() {
             days: createDays(),
             references: createReferences(calories: -100),
           ),
-          throwsArgumentError,
+          throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.invalidReference,
+          )),
         );
       });
 
@@ -736,26 +621,23 @@ void main() {
         expect(
           () => calculate(
             days: createDays(),
-            references: createReferences(
-              calories: double.infinity,
-            ),
+            references: createReferences(calories: double.infinity),
           ),
-          throwsArgumentError,
+          throwsA(isA<NutritionPlanningException>().having(
+            (error) => error.code,
+            'code',
+            NutritionPlanningErrorCode.invalidReference,
+          )),
         );
       });
 
       test('rejette une configuration invalide', () {
         const invalidService = NutritionPlanningService(
-          config: NutritionPlanningConfig(
-            caloriesPerActivityScorePoint: -150,
-          ),
+          config: NutritionPlanningConfig(caloriesPerActivityScorePoint: -150),
         );
 
         expect(
-          () => calculate(
-            days: createDays(),
-            planningService: invalidService,
-          ),
+          () => calculate(days: createDays(), planningService: invalidService),
           throwsArgumentError,
         );
       });
@@ -772,19 +654,13 @@ void main() {
 
         calculate(days: days);
 
-        expect(
-          days.map((day) => day.id).toList(),
-          originalIds,
-        );
+        expect(days.map((day) => day.id).toList(), originalIds);
       });
 
       test('retourne une liste de résultats non modifiable', () {
         final result = calculate(days: createDays());
 
-        expect(
-          () => result.days.clear(),
-          throwsUnsupportedError,
-        );
+        expect(() => result.days.clear(), throwsUnsupportedError);
       });
 
       test('retourne une liste de problèmes non modifiable', () {

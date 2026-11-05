@@ -1,5 +1,3 @@
-
-
 import 'package:makros_models/models.dart';
 
 class NutritionCalculationConfig {

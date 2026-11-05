@@ -2,7 +2,7 @@ class MacroCalculationConfig {
   final double cutProteinPerKg;
   final double cutFatPerKg;
   final double carbohydrateWarningPerKg;
-final double calorieTolerance;
+  final double calorieTolerance;
 
   final double maintenanceProteinPerKg;
   final double maintenanceFatPerKg;
@@ -11,7 +11,7 @@ final double calorieTolerance;
   final double bulkFatPerKg;
 
   const MacroCalculationConfig({
-      this.calorieTolerance = 0.001,
+    this.calorieTolerance = 0.001,
 
     this.cutProteinPerKg = 2.0,
     this.cutFatPerKg = 0.8,

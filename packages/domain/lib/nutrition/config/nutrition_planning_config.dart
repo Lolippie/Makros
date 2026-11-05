@@ -1,22 +1,10 @@
 class NutritionPlanningConfig {
-  /// Variation maximale par rapport aux calories de référence.
   final double maxDailyVariationFraction;
-
-  /// Variation maximale absolue en kcal.
   final double maxDailyVariationCalories;
-
-  /// Score maximal attribuable à une journée.
   final double maxActivityScore;
-
-  /// Durée de référence d'une activité en minutes.
   final double referenceDurationMinutes;
-
-  /// Durée utilisée lorsqu'une activité est prévue
-  /// mais que sa durée n'est pas renseignée.
   final int defaultActivityDurationMinutes;
-
-final double caloriesPerActivityScorePoint;
-  /// Coefficients par type de sport.
+  final double caloriesPerActivityScorePoint;
   final double gymWeight;
   final double runningWeight;
   final double walkingWeight;
@@ -38,6 +26,39 @@ final double caloriesPerActivityScorePoint;
     this.swimmingWeight = 1.2,
     this.cardioWeight = 1.2,
     this.otherWeight = 1.0,
-    this.caloriesPerActivityScorePoint = 150.0
-      });
+    this.caloriesPerActivityScorePoint = 150.0,
+  });
+
+  /// Erreur de programmation : une configuration invalide n'est pas une
+  /// insuffisance nutritionnelle à signaler à l'utilisateur.
+  void validate() {
+    if (!maxDailyVariationFraction.isFinite ||
+        maxDailyVariationFraction < 0 ||
+        maxDailyVariationFraction > 1 ||
+        !maxDailyVariationCalories.isFinite ||
+        maxDailyVariationCalories < 0 ||
+        !maxActivityScore.isFinite ||
+        maxActivityScore <= 0 ||
+        !referenceDurationMinutes.isFinite ||
+        referenceDurationMinutes <= 0 ||
+        defaultActivityDurationMinutes <= 0 ||
+        !caloriesPerActivityScorePoint.isFinite ||
+        caloriesPerActivityScorePoint < 0) {
+      throw ArgumentError('Configuration du planning nutritionnel invalide.');
+    }
+    final weights = [
+      gymWeight,
+      runningWeight,
+      walkingWeight,
+      cyclingWeight,
+      swimmingWeight,
+      cardioWeight,
+      otherWeight,
+    ];
+    if (weights.any((value) => !value.isFinite || value < 0)) {
+      throw ArgumentError(
+        'Les coefficients sportifs doivent être finis et positifs ou nuls.',
+      );
+    }
+  }
 }

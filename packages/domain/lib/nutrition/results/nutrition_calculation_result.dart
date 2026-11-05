@@ -1,4 +1,3 @@
-
 class NutritionCalculationResult {
   const NutritionCalculationResult({
     required this.restingEnergyExpenditureKcal,
