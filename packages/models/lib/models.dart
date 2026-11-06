@@ -5,6 +5,9 @@ export 'user/user_goal.dart';
 export 'user/weight_history.dart';
 export 'user/body_fat_history.dart';
 export 'user/muscle_mass_history.dart';
+export 'common/field_update.dart';
+export 'common/measurement_method_normalizer.dart';
+export 'user/user_goal_validation.dart';
 
 // Alimentation
 export 'alimentation/food.dart';

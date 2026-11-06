@@ -1,7 +1,7 @@
 import 'package:makros_models/models.dart';
 
 import '../nutrition/results/weight_progress_result.dart';
-import '../nutrition/utils/civil_calendar.dart';
+import '../utils/civil_calendar.dart';
 import 'exceptions/goal_progress_exception.dart';
 import 'goal_progress_service.dart';
 import 'results/goal_progress_result.dart';
