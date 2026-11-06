@@ -115,8 +115,8 @@ class UserGoalValidationException extends ArgumentError {
   final List<UserGoalValidationIssue> issues;
 
   UserGoalValidationException(Iterable<UserGoalValidationIssue> issues)
-      : issues = List.unmodifiable(issues),
-        super('UserGoal invalide : ${issues.join(', ')}');
+    : issues = List.unmodifiable(issues),
+      super('UserGoal invalide : ${issues.join(', ')}');
 
   @override
   String toString() => 'UserGoalValidationException(issues: $issues)';

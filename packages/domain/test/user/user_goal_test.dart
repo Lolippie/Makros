@@ -15,19 +15,19 @@ void main() {
     DateTime? bodyFatAt,
     DateTime? endDate,
   }) => UserGoal(
-        id: 'g1',
-        userId: 'u1',
-        type: GoalType.cut,
-        startDate: start,
-        endDate: endDate,
-        targetWeight: weight,
-        targetBodyFatPercentage: bodyFat,
-        targetBodyFatMeasurementMethod: method,
-        targetWeightAchieved: weightAchieved,
-        targetBodyFatPercentageAchieved: bodyFatAchieved,
-        targetWeightAchievedAt: weightAt,
-        targetBodyFatPercentageAchievedAt: bodyFatAt,
-      );
+    id: 'g1',
+    userId: 'u1',
+    type: GoalType.cut,
+    startDate: start,
+    endDate: endDate,
+    targetWeight: weight,
+    targetBodyFatPercentage: bodyFat,
+    targetBodyFatMeasurementMethod: method,
+    targetWeightAchieved: weightAchieved,
+    targetBodyFatPercentageAchieved: bodyFatAchieved,
+    targetWeightAchievedAt: weightAt,
+    targetBodyFatPercentageAchievedAt: bodyFatAt,
+  );
 
   test('répare une cible historique invalide sans valider l’entrée', () {
     final legacy = goal(weight: -2);
@@ -94,12 +94,18 @@ void main() {
   test('marquage idempotent et date civile d’analyse', () {
     final marked = goal().markAchieved(weight: true, achievedAt: asOf);
     expect(marked.targetWeightAchievedAt, asOf);
-    expect(identical(marked.markAchieved(weight: true, achievedAt: asOf), marked), isTrue);
+    expect(
+      identical(marked.markAchieved(weight: true, achievedAt: asOf), marked),
+      isTrue,
+    );
   });
 
   test('clôture unique et date d’atteinte respectée', () {
     final marked = goal().markAchieved(weight: true, achievedAt: asOf);
-    expect(() => marked.close(endDate: start), throwsA(isA<UserGoalValidationException>()));
+    expect(
+      () => marked.close(endDate: start),
+      throwsA(isA<UserGoalValidationException>()),
+    );
     final closed = marked.close(endDate: asOf);
     expect(() => closed.close(endDate: asOf), throwsStateError);
   });
@@ -107,40 +113,63 @@ void main() {
   test('exception de validation compatible ArgumentError', () {
     final legacy = goal(weight: -1);
     expect(() => legacy.validate(), throwsArgumentError);
-    expect(legacy.validationIssues, contains(UserGoalValidationIssue.invalidTargetWeight));
+    expect(
+      legacy.validationIssues,
+      contains(UserGoalValidationIssue.invalidTargetWeight),
+    );
   });
 
   test('anomalie historique classée sans empêcher diagnostic', () {
-    final legacy = goal(weightAchieved: true, weightAt: start.subtract(const Duration(days: 1)));
-    expect(legacy.validationIssues, contains(UserGoalValidationIssue.weightAchievementOutsidePeriod));
-    expect(UserGoalValidationIssue.weightAchievementOutsidePeriod.isHistorical, isTrue);
+    final legacy = goal(
+      weightAchieved: true,
+      weightAt: start.subtract(const Duration(days: 1)),
+    );
+    expect(
+      legacy.validationIssues,
+      contains(UserGoalValidationIssue.weightAchievementOutsidePeriod),
+    );
+    expect(
+      UserGoalValidationIssue.weightAchievementOutsidePeriod.isHistorical,
+      isTrue,
+    );
   });
 
   test('accent NFC/NFD de base normalisé identiquement', () {
-    expect(normalizeMeasurementMethod('Bioimpédance'),
-        normalizeMeasurementMethod('Bioimpe\u0301dance'));
-  });
-  test('legacy méthode blanche inchangée : diagnostic, pas erreur de saisie', () {
-    final legacy = goal(method: '  ');
     expect(
-      () => legacy.withUpdatedTargets(
-        targetWeight: const SetField<double?>(60.0),
-      ),
-      throwsA(isA<UserGoalValidationException>().having(
-        (e) => e.issues,
-        'issues',
-        contains(UserGoalValidationIssue.emptyMeasurementMethod),
-      )),
+      normalizeMeasurementMethod('Bioimpédance'),
+      normalizeMeasurementMethod('Bioimpe\u0301dance'),
     );
-    final repaired = legacy.withUpdatedTargets(
-      targetBodyFatMeasurementMethod:
-          const SetField<String?>('bioimpedance'),
-    );
-    expect(repaired.isValid, isTrue);
-    expect(legacy.withUpdatedTargets(
-      targetBodyFatPercentage: const SetField<double?>(null),
-    ).isValid, isTrue);
   });
+  test(
+    'legacy méthode blanche inchangée : diagnostic, pas erreur de saisie',
+    () {
+      final legacy = goal(method: '  ');
+      expect(
+        () => legacy.withUpdatedTargets(
+          targetWeight: const SetField<double?>(60.0),
+        ),
+        throwsA(
+          isA<UserGoalValidationException>().having(
+            (e) => e.issues,
+            'issues',
+            contains(UserGoalValidationIssue.emptyMeasurementMethod),
+          ),
+        ),
+      );
+      final repaired = legacy.withUpdatedTargets(
+        targetBodyFatMeasurementMethod: const SetField<String?>('bioimpedance'),
+      );
+      expect(repaired.isValid, isTrue);
+      expect(
+        legacy
+            .withUpdatedTargets(
+              targetBodyFatPercentage: const SetField<double?>(null),
+            )
+            .isValid,
+        isTrue,
+      );
+    },
+  );
 
   test('méthode explicitement définie sans cible : refus', () {
     expect(
@@ -212,10 +241,7 @@ void main() {
 
   test('marquage sans cible de poids : erreur métier explicite', () {
     expect(
-      () => goal(weight: null).markAchieved(
-        weight: true,
-        achievedAt: asOf,
-      ),
+      () => goal(weight: null).markAchieved(weight: true, achievedAt: asOf),
       throwsStateError,
     );
   });
@@ -229,8 +255,13 @@ void main() {
   test('classification des anomalies par cible', () {
     expect(UserGoalValidationIssue.invalidTargetWeight.affectsWeight, isTrue);
     expect(UserGoalValidationIssue.invalidTargetWeight.affectsBodyFat, isFalse);
-    expect(UserGoalValidationIssue.invalidTargetWeight.affectsNutritionConfig, isFalse);
-    expect(UserGoalValidationIssue.invalidCalorieAdjustment.affectsNutritionConfig, isTrue);
+    expect(
+      UserGoalValidationIssue.invalidTargetWeight.affectsNutritionConfig,
+      isFalse,
+    );
+    expect(
+      UserGoalValidationIssue.invalidCalorieAdjustment.affectsNutritionConfig,
+      isTrue,
+    );
   });
-
 }

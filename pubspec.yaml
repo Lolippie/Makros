@@ -1,4 +1,3 @@
-
 name: makros_workspace
 publish_to: none
 
@@ -31,3 +30,17 @@ melos:
 
     analyze:
       run: melos exec -- flutter analyze
+
+    test:flutter:
+      run: melos exec --scope="makros_app" -- flutter test
+      description: Exécute les tests Flutter
+
+    test:dart:
+      run: melos exec --dir-exists="test" --ignore="makros_app" -- dart test
+      description: Exécute les tests des packages Dart
+
+    test:
+      run: |
+        melos run test:dart
+        melos run test:flutter
+      description: Exécute tous les tests du workspace

@@ -7,6 +7,8 @@ enum GoalProgressErrorCode {
   userMismatch,
   analysisDateMismatch,
   measurementPeriodMismatch,
+  measurementMethodMismatch,
+  invalidBodyFatAnalysis,
 }
 
 /// Erreur métier codée, sans texte d'interface.

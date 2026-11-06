@@ -10,15 +10,13 @@ class NutritionCalculatorService {
 
   final NutritionCalculationConfig config;
 
-  /// Estime la dépense énergétique de repos avec Mifflin-St Jeor.
-  ///
-  /// referenceDate permet de recalculer un résultat historique
-  /// sans utiliser systématiquement la date actuelle.
+  /// Estime la dépense énergétique de repos selon Mifflin-St Jeor.
   double calculateRestingEnergyExpenditure({
     required UserProfile profile,
     required double weightKg,
     DateTime? referenceDate,
   }) {
+    _validateConfig();
     _validatePositive(weightKg, 'Le poids');
     _validatePositive(profile.height, 'La taille');
 
@@ -27,8 +25,11 @@ class NutritionCalculatorService {
       birthDate: profile.birthDate,
       referenceDate: calculationDate,
     );
-
-    if (age < 0) {
+    if (age < 0 ||
+        (age == 0 &&
+            _calendarDay(
+              profile.birthDate,
+            ).isAfter(_calendarDay(calculationDate)))) {
       throw ArgumentError(
         'La date de naissance ne peut pas être dans le futur.',
       );
@@ -39,10 +40,9 @@ class NutritionCalculatorService {
       Gender.female => -161.0,
     };
 
-    return (10 * weightKg) +
-        (6.25 * profile.height) -
-        (5 * age) +
-        genderConstant;
+    final result =
+        (10 * weightKg) + (6.25 * profile.height) - (5 * age) + genderConstant;
+    return _requireFinitePositive(result, 'La dépense énergétique de repos');
   }
 
   int _calculateAge({
@@ -50,184 +50,132 @@ class NutritionCalculatorService {
     required DateTime referenceDate,
   }) {
     var age = referenceDate.year - birthDate.year;
-
-    final birthdayNotReached =
-        referenceDate.month < birthDate.month ||
+    if (referenceDate.month < birthDate.month ||
         (referenceDate.month == birthDate.month &&
-            referenceDate.day < birthDate.day);
-
-    if (birthdayNotReached) {
+            referenceDate.day < birthDate.day)) {
       age--;
     }
-
     return age;
   }
 
-  /// Estime les dépenses quotidiennes habituelles,
-  /// en excluant les séances de sport planifiées.
+  /// Dépense habituelle hors séances sportives planifiées.
   double calculateDailyBaselineCalories({
     required double restingEnergyExpenditureKcal,
     required ActivityLevel activityLevel,
   }) {
+    _validateConfig();
     _validatePositive(
       restingEnergyExpenditureKcal,
       'La dépense énergétique de repos',
     );
-
     final factor = config.nonExerciseActivityFactors[activityLevel];
-
-    if (factor == null || !factor.isFinite || factor < 1) {
-      throw ArgumentError(
-        'Coefficient d’activité hors sport invalide pour $activityLevel.',
-      );
+    if (factor == null) {
+      throw ArgumentError('Coefficient absent pour $activityLevel.');
     }
-
-    return restingEnergyExpenditureKcal * factor;
+    return _requireFinitePositive(
+      restingEnergyExpenditureKcal * factor,
+      'La dépense énergétique quotidienne hors sport',
+    );
   }
 
-  /// Estime les calories supplémentaires dépensées pendant une séance,
-  /// au-dessus de la dépense de repos.
-  ///
-  /// MET est une estimation : ce n'est pas une mesure individuelle.
+  /// Dépense sportive nette estimée au-dessus du repos (MET - 1).
   double calculateSessionCalories({
     required double weightKg,
     required int durationMinutes,
     required double metValue,
   }) {
+    _validateConfig();
     _validatePositive(weightKg, 'Le poids');
-
     if (durationMinutes <= 0) {
       throw ArgumentError('La durée doit être positive.');
     }
-
     if (!metValue.isFinite || metValue < 1) {
       throw ArgumentError('La valeur MET doit être supérieure ou égale à 1.');
     }
-
-    // Calories nettes : on retire 1 MET correspondant au repos.
-    return (metValue - 1) * 1.05 * weightKg * (durationMinutes / 60);
+    final result = (metValue - 1) * 1.05 * weightKg * (durationMinutes / 60);
+    return _requireFiniteNonNegative(result, 'Les calories de séance');
   }
 
   double getMetValue({
     required SportType sportType,
     required ActivityIntensity intensity,
   }) {
+    _validateConfig();
     final metValue = config.sportMetValues[sportType]?[intensity];
-
-    if (metValue == null || !metValue.isFinite || metValue < 1) {
-      throw ArgumentError(
-        'Valeur MET absente ou invalide pour $sportType avec $intensity.',
-      );
+    if (metValue == null) {
+      throw ArgumentError('MET absent pour $sportType avec $intensity.');
     }
-
     return metValue;
   }
 
-  /// Calcule la dépense sportive totale d'un planning hebdomadaire.
-  ///
-  /// plannedDays peut contenir uniquement les jours planifiés :
-  /// les jours absents sont considérés comme sans séance.
-  ///
-  /// Les dates doivent appartenir à une même période de 7 jours
-  /// et ne doivent pas être dupliquées.
+  /// Somme des dépenses des séances d'une période glissante de 7 jours.
+  /// Une journée sans activité peut conserver des champs sportifs : ils sont ignorés.
+  /// Le service n’impose pas que les dates soient liées à referenceDate :
+  /// l’appelant choisit la période de 7 jours à analyser.
   double calculateWeeklyExerciseCalories({
     required double weightKg,
     required List<PlannedActiveDay> plannedDays,
   }) {
+    _validateConfig();
     _validatePositive(weightKg, 'Le poids');
     _validateWeeklyDates(plannedDays);
-
     var totalCalories = 0.0;
 
     for (final day in plannedDays) {
       if (!day.hasActivity) continue;
-
       final sportType = day.sportType;
       final intensity = day.intensity;
       final duration = day.plannedDurationMinutes;
-
       if (sportType == null || intensity == null || duration == null) {
         throw ArgumentError(
-          'Une journée active doit avoir un sport, une intensité '
-          'et une durée.',
+          'Une journée active doit avoir un sport, une intensité et une durée.',
         );
       }
-
       final metValue = getMetValue(sportType: sportType, intensity: intensity);
-
       totalCalories += calculateSessionCalories(
         weightKg: weightKg,
         durationMinutes: duration,
         metValue: metValue,
       );
+      _requireFiniteNonNegative(totalCalories, 'Le total sportif hebdomadaire');
     }
-
     return totalCalories;
   }
 
   void _validateWeeklyDates(List<PlannedActiveDay> plannedDays) {
     if (plannedDays.isEmpty) return;
-
-    // Dates en UTC : la différence en jours est alors exacte et ne dépend
-    // pas du changement d'heure (en local, 7 jours peuvent valoir 6 jours
-    // et 23 h, donc inDays == 6, et faire passer une période de 8 jours).
-    final dates = plannedDays.map((day) {
-      return DateTime.utc(day.date.year, day.date.month, day.date.day);
-    }).toList();
-
-    final uniqueDates = dates.toSet();
-
-    if (uniqueDates.length != dates.length) {
+    final dates = plannedDays.map((day) => _calendarDay(day.date)).toList();
+    if (dates.toSet().length != dates.length) {
       throw ArgumentError(
         'Le planning contient plusieurs entrées pour une même journée.',
       );
     }
-
     dates.sort();
-
-    final firstDate = dates.first;
-    final lastDate = dates.last;
-
-    if (lastDate.difference(firstDate).inDays > 6) {
+    if (dates.last.difference(dates.first).inDays > 6) {
       throw ArgumentError(
-        'Les journées fournies doivent appartenir à une même période '
-        'de 7 jours.',
+        'Les journées doivent appartenir à une même période de 7 jours.',
       );
     }
   }
 
-  /// Retourne un pourcentage signé :
-  /// - négatif pour un cut ;
-  /// - positif pour un bulk ;
-  /// - nul pour le maintien.
   double getAdjustmentPercentage(UserGoal goal) {
+    _validateConfig();
     final percentage = goal.calorieAdjustmentPercentage;
-
     switch (goal.type) {
       case GoalType.cut:
         final value = percentage ?? config.defaultCutDeficitPercentage;
-
-        if (!value.isFinite || value < 0 || value >= 100) {
-          throw ArgumentError('Le déficit doit être compris entre 0 et 100 %.');
-        }
-
+        _validateAdjustment(value, config.maxCutDeficitPercentage, 'déficit');
         return -value;
-
       case GoalType.bulk:
         final value = percentage ?? config.defaultBulkSurplusPercentage;
-
-        if (!value.isFinite || value < 0) {
-          throw ArgumentError('Le surplus doit être positif ou nul.');
-        }
-
+        _validateAdjustment(value, config.maxBulkSurplusPercentage, 'surplus');
         return value;
-
       case GoalType.maintenance:
+        // Un pourcentage éventuellement stocké n'est pas appliqué au maintien.
         return 0;
     }
   }
 
-  /// Calcule une estimation du maintien et de la cible calorique moyenne.
   NutritionCalculationResult calculate({
     required UserProfile profile,
     required UserGoal goal,
@@ -235,43 +183,44 @@ class NutritionCalculatorService {
     required List<PlannedActiveDay> plannedDays,
     DateTime? referenceDate,
   }) {
+    _validateConfig();
+    if (profile.userId.trim().isEmpty || goal.userId.trim().isEmpty) {
+      throw ArgumentError(
+        'Les identifiants utilisateur ne peuvent pas être vides.',
+      );
+    }
     if (profile.userId != goal.userId) {
       throw ArgumentError(
         'Le profil et l’objectif doivent appartenir au même utilisateur.',
       );
     }
-
     _validatePositive(currentWeightKg, 'Le poids actuel');
-
     final restingEnergy = calculateRestingEnergyExpenditure(
       profile: profile,
       weightKg: currentWeightKg,
       referenceDate: referenceDate,
     );
-
     final dailyBaselineCalories = calculateDailyBaselineCalories(
       restingEnergyExpenditureKcal: restingEnergy,
       activityLevel: profile.activityLevel,
     );
-
     final weeklyExerciseCalories = calculateWeeklyExerciseCalories(
       weightKg: currentWeightKg,
       plannedDays: plannedDays,
     );
-
-    final averageDailyExerciseCalories = weeklyExerciseCalories / 7;
-
-    final maintenanceCalories =
-        dailyBaselineCalories + averageDailyExerciseCalories;
-
+    final averageDailyExerciseCalories = _requireFiniteNonNegative(
+      weeklyExerciseCalories / 7,
+      'La moyenne sportive quotidienne',
+    );
+    final maintenanceCalories = _requireFinitePositive(
+      dailyBaselineCalories + averageDailyExerciseCalories,
+      'Le maintien calorique',
+    );
     final adjustmentPercentage = getAdjustmentPercentage(goal);
-
-    final targetCalories =
-        maintenanceCalories * (1 + adjustmentPercentage / 100);
-
-    if (!targetCalories.isFinite || targetCalories <= 0) {
-      throw StateError('La cible calorique calculée est invalide.');
-    }
+    final targetCalories = _requireFinitePositive(
+      maintenanceCalories * (1 + adjustmentPercentage / 100),
+      'La cible calorique',
+    );
 
     return NutritionCalculationResult(
       restingEnergyExpenditureKcal: restingEnergy,
@@ -292,13 +241,37 @@ class NutritionCalculatorService {
     _validatePositive(currentWeight, 'Le poids actuel');
     _validatePositive(referenceWeight, 'Le poids de référence');
     _validatePositive(threshold, 'Le seuil');
-
     return (currentWeight - referenceWeight).abs() >= threshold;
   }
+
+  void _validateConfig() => config.validate();
+
+  void _validateAdjustment(double value, double maximum, String label) {
+    if (!value.isFinite || value < 0 || value > maximum) {
+      throw ArgumentError('Le $label doit être compris entre 0 et $maximum %.');
+    }
+  }
+
+  static DateTime _calendarDay(DateTime date) =>
+      DateTime.utc(date.year, date.month, date.day);
 
   void _validatePositive(double value, String label) {
     if (!value.isFinite || value <= 0) {
       throw ArgumentError('$label doit être une valeur positive et valide.');
     }
+  }
+
+  double _requireFinitePositive(double value, String label) {
+    if (!value.isFinite || value <= 0) {
+      throw StateError('$label calculé est invalide.');
+    }
+    return value;
+  }
+
+  double _requireFiniteNonNegative(double value, String label) {
+    if (!value.isFinite || value < 0) {
+      throw StateError('$label calculé est invalide.');
+    }
+    return value;
   }
 }

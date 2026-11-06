@@ -22,7 +22,8 @@ class BodyFatProgressException implements Exception {
   });
 
   @override
-  String toString() => 'BodyFatProgressException('
+  String toString() =>
+      'BodyFatProgressException('
       'code: $code, measurementId: $measurementId, '
       'date: $date, methods: $methods)';
 }

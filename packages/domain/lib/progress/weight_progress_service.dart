@@ -1,11 +1,9 @@
 import 'package:makros_models/models.dart';
 
 import 'config/weight_progress_config.dart';
-import 'exceptions/weight_progress_exception.dart';
 import 'results/weight_progress_result.dart';
 import '../utils/civil_calendar.dart';
-
-export 'exceptions/weight_progress_exception.dart';
+import 'exceptions/weight_progress_exception.dart';
 
 /// Analyse l'historique de poids sans modifier les pesées ou les objectifs.
 ///

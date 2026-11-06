@@ -1,6 +1,6 @@
 import 'package:makros_models/models.dart';
 
-import '../nutrition/results/weight_progress_result.dart';
+import 'results/weight_progress_result.dart';
 import 'exceptions/goal_progress_exception.dart';
 import 'results/goal_progress_result.dart';
 

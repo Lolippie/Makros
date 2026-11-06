@@ -123,10 +123,19 @@ class UserGoal {
     bool bodyFat = false,
     required DateTime achievedAt,
   }) {
-    validate();
+    if (type == GoalType.maintenance && (weight || bodyFat)) {
+      throw StateError('La maintenance ne peut pas être marquée atteinte.');
+    }
     final markWeight = weight && !targetWeightAchieved;
     final markBodyFat = bodyFat && !targetBodyFatPercentageAchieved;
     if (!markWeight && !markBodyFat) return this;
+    final relevantIssues = validationIssues.where((issue) =>
+        issue.affectsIdentityOrPeriod ||
+        (markWeight && issue.affectsWeight) ||
+        (markBodyFat && issue.affectsBodyFat)).toList();
+    if (relevantIssues.isNotEmpty) {
+      throw UserGoalValidationException(relevantIssues);
+    }
     if (markWeight && targetWeight == null) {
       throw StateError('Impossible de marquer un poids cible absent.');
     }
@@ -152,7 +161,13 @@ class UserGoal {
           ? SetField<DateTime?>(achievementDay)
           : const KeepField<DateTime?>(),
     );
-    result.validate();
+    final resultIssues = result.validationIssues.where((issue) =>
+        issue.affectsIdentityOrPeriod ||
+        (markWeight && issue.affectsWeight) ||
+        (markBodyFat && issue.affectsBodyFat)).toList();
+    if (resultIssues.isNotEmpty) {
+      throw UserGoalValidationException(resultIssues);
+    }
     return result;
   }
 

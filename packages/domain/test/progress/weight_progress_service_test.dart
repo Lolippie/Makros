@@ -1,8 +1,9 @@
-import 'package:test/test.dart';
 import 'package:makros_models/models.dart';
-import 'package:makros_nutrition/nutrition/weight_progress_service.dart';
-import 'package:makros_nutrition/nutrition/config/weight_progress_config.dart';
-import 'package:makros_nutrition/nutrition/results/weight_progress_result.dart';
+import 'package:makros_nutrition/progress/config/weight_progress_config.dart';
+import 'package:makros_nutrition/progress/exceptions/weight_progress_exception.dart';
+import 'package:makros_nutrition/progress/results/weight_progress_result.dart';
+import 'package:makros_nutrition/progress/weight_progress_service.dart';
+import 'package:test/test.dart';
 
 void main() {
   const service = WeightProgressService();
@@ -50,6 +51,8 @@ void main() {
   test('stale window can be measured but cannot suggest recalculation', () {
     final r = run([m(4, 63), m(5, 63), m(6, 63)]);
     expect(r.currentTrendWeightKg, 63);
+    expect(r.hasSufficientData, isTrue);
+    expect(r.hasUsableData, isFalse);
     expect(r.isTrendFresh, isFalse);
     expect(r.shouldSuggestRecalculation, isFalse);
     expect(r.lastMeasurementDate, DateTime.utc(2026, 11, 1));
@@ -123,9 +126,12 @@ void main() {
       isFalse,
     );
   });
-  test('remainingToTargetKg stays a signed difference', () {
+  test('remainingToTargetKg = cible - poids actuel', () {
     List<WeightHistory> data(double kg) => [m(0, kg), m(1, kg), m(2, kg)];
     expect(run(data(64), target: 60).remainingToTargetKg, -4);
+    expect(run(data(58), target: 60).remainingToTargetKg, 2);
+    expect(run(data(60), target: 60).remainingToTargetKg, 0);
+    expect(run(data(60)).remainingToTargetKg, isNull);
   });
   test('does not mutate input list, objects or order', () {
     final items = [m(2, 64), m(0, 63), m(1, 65), m(-1, 40)];
@@ -292,6 +298,24 @@ void main() {
       config: WeightProgressConfig(maxDaysSinceLastMeasurement: 6),
     );
     expect(() => run([], calculator: invalid), throwsArgumentError);
+  });
+
+  test('fraîcheur : limite exacte acceptée, jour suivant périmé', () {
+    final fresh = run([m(3, 64), m(4, 64), m(5, 64)]);
+    expect(fresh.currentTrendWeightKg, 64);
+    expect(fresh.isTrendFresh, isTrue);
+
+    final stale = run([m(4, 64), m(5, 64), m(6, 64)]);
+    expect(stale.currentTrendWeightKg, 64);
+    expect(stale.isTrendFresh, isFalse);
+  });
+
+  test('seuil de recalcul : exactement 1 kg, et juste en dessous', () {
+    final atThreshold = run([m(0, 64), m(1, 64), m(2, 64)]);
+    final belowThreshold = run([m(0, 64.5), m(1, 64.5), m(2, 64.5)]);
+
+    expect(atThreshold.shouldSuggestRecalculation, isTrue);
+    expect(belowThreshold.shouldSuggestRecalculation, isFalse);
   });
 
   test('dates proches de 1970 ne font pas échouer le calcul des centres', () {

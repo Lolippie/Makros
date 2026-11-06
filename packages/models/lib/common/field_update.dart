@@ -1,4 +1,3 @@
-
 sealed class FieldUpdate<T> {
   const FieldUpdate();
 }
